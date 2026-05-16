@@ -29,8 +29,6 @@ class MatchEngine
 
     public function processAction(GameMatch $match, User $user, array $payload): array
     {
-        $t0 = hrtime(true);
-
         $this->ensureTurnDeadline($match);
 
         $estado = $match->estado;
@@ -44,8 +42,6 @@ class MatchEngine
         $animacoes = [];
         $acao = $payload['acao'] ?? '';
 
-        $t1 = hrtime(true);
-
         match ($acao) {
             'invocar'         => $this->invoke($estado, $slot, $payload, $animacoes),
             'atacar_unidade'  => $this->attackUnit($estado, $slot, $payload, $animacoes),
@@ -55,8 +51,6 @@ class MatchEngine
             default           => throw new InvalidArgumentException('Ação inválida'),
         };
 
-        $t2 = hrtime(true);
-
         // endTurn já atribui $match->estado internamente; para outros casos atribuímos aqui.
         // Um único save cobre todos os campos alterados (estado, jogador_da_vez, turno, deadline).
         if ($acao !== 'finalizar_turno') {
@@ -64,38 +58,17 @@ class MatchEngine
         }
         $match->save();
 
-        $t3 = hrtime(true);
-
         $this->logAction($match, $user->id, $acao, $payload); // deferred
 
         $finished = $this->checkVictory($match, $estado, $animacoes);
 
-        $t4 = hrtime(true);
-
         if (! $finished) {
-            // Broadcast via defer() — executa APÓS a resposta HTTP ser enviada,
-            // não bloqueia o tempo de resposta do jogador atual.
-            $matchSnap   = $match->id;
-            $acoaSnap    = $acao;
-            $slotSnap    = $slot;
-            $animSnap    = $animacoes;
-            $matchObj    = $match;
-            defer(function () use ($matchObj, $acoaSnap, $slotSnap, $animSnap) {
-                broadcast(new ActionProcessed($matchObj, $acoaSnap, $slotSnap, $animSnap))->toOthers();
+            // Broadcast via defer() — executa APÓS a resposta HTTP ser enviada.
+            $matchObj = $match;
+            defer(function () use ($matchObj, $acao, $slot, $animacoes) {
+                broadcast(new ActionProcessed($matchObj, $acao, $slot, $animacoes))->toOthers();
             });
         }
-
-        $t5 = hrtime(true);
-
-        \Illuminate\Support\Facades\Log::info('[processAction] timings (ms)', [
-            'acao'        => $acao,
-            'setup'       => round(($t1 - $t0) / 1e6, 2),
-            'game_logic'  => round(($t2 - $t1) / 1e6, 2),
-            'db_save'     => round(($t3 - $t2) / 1e6, 2),
-            'victory'     => round(($t4 - $t3) / 1e6, 2),
-            'broadcast'   => round(($t5 - $t4) / 1e6, 2),
-            'total'       => round(($t5 - $t0) / 1e6, 2),
-        ]);
 
         return [
             'sucesso'          => true,

@@ -52,6 +52,7 @@ class MatchViewBuilder
         return [
             'id'               => $match->id,
             'status'           => $match->status->value,
+            'vencedor_id'      => $match->vencedor_id,
             'turno'            => $estado['turno'],
             'jogador_da_vez'   => $estado['jogador_da_vez'],
             'meu_player_id'    => $slot,
