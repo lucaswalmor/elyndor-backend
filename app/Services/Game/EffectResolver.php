@@ -62,31 +62,71 @@ class EffectResolver
         array $context = [],
     ): void {
         $tipo = $efeito['tipo'] ?? '';
-        $opp = $slot === 1 ? 2 : 1;
 
-        match ($tipo) {
-            'charge' => $this->charge($unit, $efeito, $animacoes),
-            'dano_todas_inimigas' => $this->damageAllEnemyUnits($estado, $slot, (int) ($efeito['valor'] ?? 0), $animacoes),
-            'debuff_ataque' => $this->addEffect($unit, 'debuff_ataque', $efeito, $animacoes),
-            'veneno' => $this->addEffect($unit ?? $context['alvo'] ?? null, 'veneno', $efeito, $animacoes),
-            'silencio' => $this->silence($context['alvo'] ?? null, $animacoes),
-            'cura_aleatorio_aliado' => $this->healRandomAlly($estado, $slot, (int) ($efeito['valor'] ?? 1), $animacoes),
-            'cura_por_dano' => $this->healPlayer($estado, $slot, (int) ($context['dano'] ?? 0), $animacoes),
-            'energia_temporaria' => $this->bonusEnergy($estado, $slot, (int) ($efeito['valor'] ?? 1), $animacoes),
-            'escudo_primeiro_golpe' => $this->addFlag($unit, 'escudo', $animacoes),
-            'nao_pode_atacar' => $this->addEffect($context['alvo'] ?? null, 'nao_pode_atacar', $efeito, $animacoes),
-            'forcar_ataque_a_si' => $this->addFlag($unit, 'taunt_self', $animacoes),
-            'aura_buff_ataque' => null, // aplicado em getUnitAttack
-            'aura_debuff_ataque' => null,
-            'ressurreicao_unica' => $this->flagRessurreicao($estado, $slot),
-            'reviver_ultimo_aliado' => $this->reviveLastAlly($estado, $slot, $animacoes),
-            'retornar_aliado_mao' => $this->returnAllyToHand($estado, $slot, $context, $animacoes),
-            'destruir_aleatorio_inimigo' => $this->destroyRandomEnemy($estado, $slot, $animacoes),
-            'revelar_proxima_carta_deck' => $this->revealNext($estado, $slot, $animacoes),
-            'confusao' => $this->addEffect($context['alvo'] ?? null, 'confusao', $efeito, $animacoes),
-            'crescimento_por_morte' => $this->addFlag($unit, 'crescimento_por_morte', $animacoes),
-            default => null,
-        };
+        // Extrair alvos em variáveis antes de qualquer chamada que use referência,
+        // pois expressões como "$context['alvo'] ?? null" não podem ser passadas por referência.
+        $alvo       = $context['alvo'] ?? null;
+        $targetUnit = $unit ?? $alvo;
+
+        switch ($tipo) {
+            case 'charge':
+                $this->charge($unit, $efeito, $animacoes);
+                break;
+            case 'dano_todas_inimigas':
+                $this->damageAllEnemyUnits($estado, $slot, (int) ($efeito['valor'] ?? 0), $animacoes);
+                break;
+            case 'debuff_ataque':
+                $this->addEffect($unit, 'debuff_ataque', $efeito, $animacoes);
+                break;
+            case 'veneno':
+                $this->addEffect($targetUnit, 'veneno', $efeito, $animacoes);
+                break;
+            case 'silencio':
+                $this->silence($alvo, $animacoes);
+                break;
+            case 'cura_aleatorio_aliado':
+                $this->healRandomAlly($estado, $slot, (int) ($efeito['valor'] ?? 1), $animacoes);
+                break;
+            case 'cura_por_dano':
+                $this->healPlayer($estado, $slot, (int) ($context['dano'] ?? 0), $animacoes);
+                break;
+            case 'energia_temporaria':
+                $this->bonusEnergy($estado, $slot, (int) ($efeito['valor'] ?? 1), $animacoes);
+                break;
+            case 'escudo_primeiro_golpe':
+                $this->addFlag($unit, 'escudo', $animacoes);
+                break;
+            case 'nao_pode_atacar':
+                $this->addEffect($alvo, 'nao_pode_atacar', $efeito, $animacoes);
+                break;
+            case 'forcar_ataque_a_si':
+                $this->addFlag($unit, 'taunt_self', $animacoes);
+                break;
+            case 'aura_buff_ataque':   // aplicado em getUnitAttack
+            case 'aura_debuff_ataque': // aplicado em getUnitAttack
+                break;
+            case 'ressurreicao_unica':
+                $this->flagRessurreicao($estado, $slot);
+                break;
+            case 'reviver_ultimo_aliado':
+                $this->reviveLastAlly($estado, $slot, $animacoes);
+                break;
+            case 'retornar_aliado_mao':
+                $this->returnAllyToHand($estado, $slot, $context, $animacoes);
+                break;
+            case 'destruir_aleatorio_inimigo':
+                $this->destroyRandomEnemy($estado, $slot, $animacoes);
+                break;
+            case 'revelar_proxima_carta_deck':
+                $this->revealNext($estado, $slot, $animacoes);
+                break;
+            case 'confusao':
+                $this->addEffect($alvo, 'confusao', $efeito, $animacoes);
+                break;
+            case 'crescimento_por_morte':
+                $this->addFlag($unit, 'crescimento_por_morte', $animacoes);
+                break;
+        }
     }
 
     public function hasPassive(int $cardId, string $tipo): bool

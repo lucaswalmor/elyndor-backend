@@ -24,6 +24,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/matches/{id}', [MatchController::class, 'show']);
         Route::post('/matches/{id}/action', [MatchController::class, 'action']);
         Route::post('/matches/{id}/reconnect', [MatchController::class, 'reconnect']);
+        // surrender = render voluntário | abandon = fechou a aba (mesmo resultado)
+        Route::post('/matches/{id}/surrender', [MatchController::class, 'surrender']);
+        Route::post('/matches/{id}/abandon',   [MatchController::class, 'surrender']);
 
         Route::post('/dev/pair-queue', [DevController::class, 'pairQueue']);
     });

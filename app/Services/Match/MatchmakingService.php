@@ -10,6 +10,7 @@ use App\Models\GameMatch;
 use App\Models\MatchmakingQueue;
 use App\Models\MatchPlayer;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 use App\Services\Game\MatchInitializer;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -66,6 +67,19 @@ class MatchmakingService
     {
         $entry = MatchmakingQueue::where('user_id', $user->id)->first();
         if (! $entry) {
+            // Usuário saiu da fila — verifica se já tem partida ativa (pode ter perdido evento WS)
+            $player = MatchPlayer::where('user_id', $user->id)
+                ->whereHas('match', fn ($q) => $q->whereIn('status', [
+                    MatchStatus::Aguardando->value,
+                    MatchStatus::EmAndamento->value,
+                ]))
+                ->latest()
+                ->first();
+
+            if ($player) {
+                return ['status' => 'partida_encontrada', 'match_id' => $player->match_id];
+            }
+
             return ['status' => 'fora_da_fila'];
         }
 

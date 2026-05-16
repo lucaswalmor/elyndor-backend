@@ -49,8 +49,8 @@ class MatchInitializer
         return [
             'user_id' => $mp->user_id,
             'vida' => 20,
-            'energia_atual' => 1,
-            'energia_maxima' => 1,
+            'energia_atual' => config('game.match.energy.start', 3),
+            'energia_maxima' => config('game.match.energy.start', 3),
             'energia_reservada' => 0,
             'energia_bonus_turno' => 0,
             'mao' => $mao,

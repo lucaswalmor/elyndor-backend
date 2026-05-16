@@ -29,10 +29,14 @@ class MatchEngine
 
     public function processAction(GameMatch $match, User $user, array $payload): array
     {
+        $t0 = hrtime(true);
+
         $this->ensureTurnDeadline($match);
 
         $estado = $match->estado;
-        $slot = $this->playerSlot($match, $user->id);
+
+        // Usa a coleção já carregada — sem query adicional
+        $slot = $this->playerSlotFromCollection($match, $user->id);
         if ($estado['jogador_da_vez'] !== $slot) {
             throw new InvalidArgumentException('Não é o seu turno');
         }
@@ -40,31 +44,64 @@ class MatchEngine
         $animacoes = [];
         $acao = $payload['acao'] ?? '';
 
+        $t1 = hrtime(true);
+
         match ($acao) {
-            'invocar' => $this->invoke($estado, $slot, $payload, $animacoes),
-            'atacar_unidade' => $this->attackUnit($estado, $slot, $payload, $animacoes),
-            'atacar_jogador' => $this->attackPlayer($estado, $slot, $payload, $animacoes),
-            'habilidade' => $this->activeAbility($estado, $slot, $payload, $animacoes),
+            'invocar'         => $this->invoke($estado, $slot, $payload, $animacoes),
+            'atacar_unidade'  => $this->attackUnit($estado, $slot, $payload, $animacoes),
+            'atacar_jogador'  => $this->attackPlayer($estado, $slot, $payload, $animacoes),
+            'habilidade'      => $this->activeAbility($estado, $slot, $payload, $animacoes),
             'finalizar_turno' => $this->endTurn($match, $estado, $slot, $animacoes),
-            default => throw new InvalidArgumentException('Ação inválida'),
+            default           => throw new InvalidArgumentException('Ação inválida'),
         };
 
-        $match->estado = $estado;
+        $t2 = hrtime(true);
+
+        // endTurn já atribui $match->estado internamente; para outros casos atribuímos aqui.
+        // Um único save cobre todos os campos alterados (estado, jogador_da_vez, turno, deadline).
+        if ($acao !== 'finalizar_turno') {
+            $match->estado = $estado;
+        }
         $match->save();
 
-        $this->logAction($match, $user->id, $acao, $payload);
+        $t3 = hrtime(true);
+
+        $this->logAction($match, $user->id, $acao, $payload); // deferred
 
         $finished = $this->checkVictory($match, $estado, $animacoes);
 
+        $t4 = hrtime(true);
+
         if (! $finished) {
-            broadcast(new ActionProcessed($match, $acao, $slot, $animacoes))->toOthers();
+            // Broadcast via defer() — executa APÓS a resposta HTTP ser enviada,
+            // não bloqueia o tempo de resposta do jogador atual.
+            $matchSnap   = $match->id;
+            $acoaSnap    = $acao;
+            $slotSnap    = $slot;
+            $animSnap    = $animacoes;
+            $matchObj    = $match;
+            defer(function () use ($matchObj, $acoaSnap, $slotSnap, $animSnap) {
+                broadcast(new ActionProcessed($matchObj, $acoaSnap, $slotSnap, $animSnap))->toOthers();
+            });
         }
 
+        $t5 = hrtime(true);
+
+        \Illuminate\Support\Facades\Log::info('[processAction] timings (ms)', [
+            'acao'        => $acao,
+            'setup'       => round(($t1 - $t0) / 1e6, 2),
+            'game_logic'  => round(($t2 - $t1) / 1e6, 2),
+            'db_save'     => round(($t3 - $t2) / 1e6, 2),
+            'victory'     => round(($t4 - $t3) / 1e6, 2),
+            'broadcast'   => round(($t5 - $t4) / 1e6, 2),
+            'total'       => round(($t5 - $t0) / 1e6, 2),
+        ]);
+
         return [
-            'sucesso' => true,
-            'estado_atualizado' => $estado,
-            'animacoes' => $animacoes,
-            'finalizada' => $finished,
+            'sucesso'          => true,
+            'estado_atualizado'=> $estado,
+            'animacoes'        => $animacoes,
+            'finalizada'       => $finished,
         ];
     }
 
@@ -96,9 +133,19 @@ class MatchEngine
 
     public function damageUnit(array &$estado, int $slot, array &$unit, int $dmg, array &$animacoes): void
     {
+        $id = $unit['instancia_id'];
+
         if ($unit['flags']['escudo'] ?? false) {
+            // Remove o escudo da cópia local E persiste no $estado imediatamente.
+            // Sem o syncUnit aqui o escudo nunca seria consumido.
             unset($unit['flags']['escudo']);
-            $animacoes[] = ['tipo' => 'escudo_quebrado', 'instancia_id' => $unit['instancia_id']];
+            $this->syncUnit($estado, $slot, $unit);
+            $animacoes[] = ['tipo' => 'escudo_quebrado', 'instancia_id' => $id];
+
+            \Illuminate\Support\Facades\Log::info('[damageUnit] escudo absorveu ataque', [
+                'instancia_id' => $id,
+                'card_id'      => $unit['card_id'],
+            ]);
 
             return;
         }
@@ -114,10 +161,21 @@ class MatchEngine
         $dmg = max(0, $dmg - $reducao);
 
         $unit['vida_atual'] -= $dmg;
-        $animacoes[] = ['tipo' => 'dano', 'instancia_id' => $unit['instancia_id'], 'valor' => $dmg];
+        $animacoes[] = ['tipo' => 'dano', 'instancia_id' => $id, 'valor' => $dmg];
+
+        \Illuminate\Support\Facades\Log::info('[damageUnit] dano aplicado', [
+            'instancia_id' => $id,
+            'card_id'      => $unit['card_id'],
+            'dmg'          => $dmg,
+            'vida_restante' => $unit['vida_atual'],
+        ]);
 
         if ($unit['vida_atual'] <= 0) {
-            $this->killUnit($estado, $slot, $unit['instancia_id'], $animacoes);
+            $this->killUnit($estado, $slot, $id, $animacoes);
+        } else {
+            // Persiste a vida reduzida no $estado imediatamente para que
+            // chamadas subsequentes (findUnit, syncUnit, etc.) vejam o valor correto.
+            $this->syncUnit($estado, $slot, $unit);
         }
     }
 
@@ -127,6 +185,12 @@ class MatchEngine
         if (! $unit) {
             return;
         }
+
+        \Illuminate\Support\Facades\Log::info('[killUnit] unidade eliminada', [
+            'instancia_id' => $instanciaId,
+            'card_id'      => $unit['card_id'],
+            'slot'         => $slot,
+        ]);
 
         $this->effects->triggerSkills($estado, $slot, 'ao_morrer', $unit, $animacoes);
 
@@ -174,9 +238,12 @@ class MatchEngine
         $atk = $this->getUnitAttack($estado, $slot, $attacker);
         if ($defender) {
             $defAtk = $this->getUnitAttack($estado, $oppSlot, $defender);
+
+            // damageUnit modifica $defender localmente E persiste no $estado (syncUnit interno)
             $this->damageUnit($estado, $oppSlot, $defender, $atk, $animacoes);
-            $defender = $this->findUnit($estado, $oppSlot, $defender['instancia_id']);
-            if ($defender && $defender['vida_atual'] > 0) {
+
+            if ($defender['vida_atual'] > 0) {
+                // Contra-ataque (defensor sobreviveu)
                 $noRetaliation = $this->effects->hasPassive($attacker['card_id'], 'ataque_sem_retaliacao');
                 $silenced = $defender['silenciado'] ?? false;
                 $extra = $this->effects->hasPassive($attacker['card_id'], 'contra_ataque_extra');
@@ -185,15 +252,20 @@ class MatchEngine
                     if ($this->effects->hasPassive($attacker['card_id'], 'dano_bonus_vs_reducao')) {
                         $retaliation = max($retaliation, $atk);
                     }
+                    // Busca o atacante direto do $estado (já sincronizado)
                     $attackerRef = $this->findUnit($estado, $slot, $attacker['instancia_id']);
                     if ($attackerRef) {
                         $this->damageUnit($estado, $slot, $attackerRef, $retaliation, $animacoes);
+                        // Propaga vida atualizada para $attacker (usado em syncUnit do caller)
+                        $attacker['vida_atual'] = $attackerRef['vida_atual'];
                     }
                 }
             }
+            // Habilidades de "ao_atacar" (gatilho pós-combate)
             $this->effects->triggerSkills($estado, $slot, 'ao_atacar', $attacker, $animacoes, ['alvo' => $defender]);
         }
         $attacker['pode_atacar'] = false;
+        // Caller (attackUnit) faz syncUnit do $attacker com pode_atacar=false e vida correta
     }
 
     public function getUnitAttack(array $estado, int $slot, array $unit): int
@@ -275,8 +347,17 @@ class MatchEngine
             throw new InvalidArgumentException('Alvo inválido');
         }
 
+        \Illuminate\Support\Facades\Log::info('[attackUnit] início do ataque', [
+            'atacante'  => ['id' => $attacker['instancia_id'], 'card' => $attacker['card_id'], 'atk' => $attacker['ataque'] ?? '?', 'vida' => $attacker['vida_atual']],
+            'defensor'  => ['id' => $defender['instancia_id'], 'card' => $defender['card_id'], 'vida' => $defender['vida_atual'], 'flags' => $defender['flags'] ?? []],
+        ]);
+
         $this->unitAttack($estado, $slot, $attacker, $opp, $defender, $animacoes);
         $this->syncUnit($estado, $slot, $attacker);
+
+        \Illuminate\Support\Facades\Log::info('[attackUnit] após ataque — defensor no estado', [
+            'defensor_atual' => $this->findUnit($estado, $opp, $defender['instancia_id']) ?? 'REMOVIDO (morto)',
+        ]);
     }
 
     private function attackPlayer(array &$estado, int $slot, array $payload, array &$animacoes): void
@@ -325,17 +406,28 @@ class MatchEngine
 
         $next = $slot === 1 ? 2 : 1;
         $estado['jogador_da_vez'] = $next;
-        $match->jogador_da_vez = $next;
-        $match->turno = ($match->turno ?? 1) + 1;
-        $estado['turno'] = $match->turno;
+        $match->jogador_da_vez   = $next;
+        $match->turno            = ($match->turno ?? 1) + 1;
+        $estado['turno']         = $match->turno;
 
         $this->startTurn($estado, $next, $animacoes);
 
-        $match->estado = $estado;
-        $match->save();
-        $this->refreshTurnDeadline($match);
+        // Calcula o deadline inline — sem chamar refreshTurnDeadline (que faria um save extra)
+        $turno   = $match->turno;
+        $cfg     = config('game.match.turn_timer');
+        $seconds = min(
+            $cfg['max_seconds'],
+            $cfg['base_seconds'] + ($turno - 1) * $cfg['increment_per_turn']
+        );
+        $match->turno_deadline_em = now()->addSeconds($seconds);
 
-        broadcast(new TurnChanged($match, $next, $timeout))->toOthers();
+        // Atualiza estado no modelo — processAction fará o único save necessário
+        $match->estado = $estado;
+
+        // Broadcast deferido: executado APÓS a resposta ser enviada ao cliente
+        defer(function () use ($match, $next, $timeout) {
+            broadcast(new TurnChanged($match, $next, $timeout))->toOthers();
+        });
     }
 
     private function startTurn(array &$estado, int $slot, array &$animacoes): void
@@ -430,14 +522,24 @@ class MatchEngine
         return false;
     }
 
-    private function playerSlot(GameMatch $match, int $userId): int
+    /**
+     * Usa a coleção já eager-loaded — zero queries.
+     * Requer GameMatch::with('players') carregado antes de chamar.
+     */
+    private function playerSlotFromCollection(GameMatch $match, int $userId): int
     {
-        $mp = $match->players()->where('user_id', $userId)->first();
+        $mp = $match->players->first(fn ($p) => $p->user_id === $userId);
         if (! $mp) {
             throw new InvalidArgumentException('Jogador não está na partida');
         }
 
         return $mp->player_slot;
+    }
+
+    /** @deprecated Use playerSlotFromCollection para evitar N+1 */
+    private function playerSlot(GameMatch $match, int $userId): int
+    {
+        return $this->playerSlotFromCollection($match, $userId);
     }
 
     private function handIndex(array $hand, string $instanciaId): ?int
@@ -462,13 +564,21 @@ class MatchEngine
 
     private function logAction(GameMatch $match, int $userId, string $acao, array $payload): void
     {
-        MatchLog::create([
-            'match_id' => $match->id,
-            'turno' => $match->turno,
-            'user_id' => $userId,
-            'acao' => $acao,
-            'card_id' => $payload['card_id'] ?? null,
-            'meta' => $payload,
-        ]);
+        // defer() executa APÓS a resposta HTTP ser enviada ao cliente —
+        // o INSERT não bloqueia o tempo de resposta.
+        $matchId = $match->id;
+        $turno   = $match->turno;
+        $cardId  = $payload['card_id'] ?? null;
+
+        defer(function () use ($matchId, $turno, $userId, $acao, $cardId, $payload) {
+            MatchLog::create([
+                'match_id' => $matchId,
+                'turno'    => $turno,
+                'user_id'  => $userId,
+                'acao'     => $acao,
+                'card_id'  => $cardId,
+                'meta'     => $payload,
+            ]);
+        });
     }
 }

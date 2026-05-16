@@ -19,8 +19,8 @@ return [
     ],
 
     'energy' => [
-        'start' => 1,
-        'max' => 8,
+        'start' => 3,
+        'max' => 10,
         'gain_per_turn' => 1,
     ],
 
