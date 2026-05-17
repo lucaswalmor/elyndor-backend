@@ -6,6 +6,9 @@ use App\Http\Controllers\Api\V1\DeckController;
 use App\Http\Controllers\Api\V1\DevController;
 use App\Http\Controllers\Api\V1\MatchController;
 use App\Http\Controllers\Api\V1\MatchmakingController;
+use App\Http\Controllers\Api\V1\WeeklyController;
+use App\Http\Controllers\Api\V1\ShopController;
+use App\Http\Controllers\Api\V1\EconomyController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -25,6 +28,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/profile/me/avatars', [\App\Http\Controllers\Api\V1\ProfileController::class, 'unlockSummary']);
 
         Route::get('/collection', [CollectionController::class, 'index']);
+        Route::get('/weekly/status', [WeeklyController::class, 'status']);
+        Route::post('/weekly/claim', [WeeklyController::class, 'claim']);
+        Route::get('/shop/catalog', [ShopController::class, 'catalog']);
+        Route::post('/shop/buy', [ShopController::class, 'buy']);
+        Route::get('/economy/chest/prices', [EconomyController::class, 'chestPrices']);
+        Route::post('/economy/chest/open', [EconomyController::class, 'chestOpen']);
         Route::get('/decks', [DeckController::class, 'index']);
         Route::post('/decks', [DeckController::class, 'store']);
         Route::put('/decks/{id}', [DeckController::class, 'update']);

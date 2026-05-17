@@ -30,4 +30,14 @@ return [
     ],
 
     'pity_epic_every' => 20,
+
+    /** Preços de abertura de baú (Fase C) */
+    'cristal_basico' => [
+        'slug' => 'chest_cristal_basico',
+        'cost_cristais' => 800,
+    ],
+    'premium_padrao' => [
+        'slug' => 'chest_premium_padrao',
+        'cost_moedas' => 450,
+    ],
 ];

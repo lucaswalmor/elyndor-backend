@@ -27,6 +27,30 @@ return [
         'offers_count' => 4,
         'pick_count' => 2,
         'max_legendary_in_offers' => 1,
+        /** Dev: permite resgate semanal em qualquer dia */
+        'claim_any_time' => env('WEEKLY_CLAIM_ANY_TIME', false),
+    ],
+
+    /** Ao ganhar carta acima do limite de cópias (mesmo limite do deck). */
+    'duplicate_cristais' => [
+        'comum' => 8,
+        'rara' => 20,
+        'epica' => 60,
+        'lendaria' => 200,
+    ],
+
+    /** Bônus de cristais ao subir de nível: base + per_level × novo_nível */
+    'level_up_bonus_cristais' => [
+        'base' => 50,
+        'per_level' => 10,
+    ],
+
+    /** Loja de cartas (paga com cristais) */
+    'card_shop_prices_cristais' => [
+        'comum' => 50,
+        'rara' => 150,
+        'epica' => 500,
+        'lendaria' => 1500,
     ],
 
     'starter_deck' => [

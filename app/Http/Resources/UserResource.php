@@ -37,6 +37,7 @@ class UserResource extends JsonResource
             'ranked_losses'    => $rl,
             'ranked_winrate'   => $tot > 0 ? round($rw / $tot, 4) : null,
             'ranked_min_level' => $ranked->minLevel(),
+            'premium_chest_pity' => (int) ($this->premium_chest_pity ?? 0),
         ];
     }
 }

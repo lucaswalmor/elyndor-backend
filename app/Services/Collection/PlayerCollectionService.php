@@ -6,7 +6,6 @@ use App\Models\Card;
 use App\Models\DeckCard;
 use App\Models\PlayerCard;
 use App\Models\User;
-use Illuminate\Support\Collection;
 
 class PlayerCollectionService
 {
@@ -50,6 +49,42 @@ class PlayerCollectionService
         }
     }
 
+    /**
+     * Ganhos de uma carta: respeita teto de cópias do deck; excedente vira cristais.
+     *
+     * @return int cristais ganhos por conversão
+     */
+    public function applyCardGain(User $user, Card $card): int
+    {
+        $this->ensureSynced($user);
+
+        $limits = config('game.progression.decks.copy_limits');
+        $max = (int) ($limits[$card->raridade] ?? 3);
+        $dupTable = config('game.progression.duplicate_cristais');
+        $perDup = (int) ($dupTable[$card->raridade] ?? 10);
+
+        $row = PlayerCard::firstOrNew([
+            'user_id' => $user->id,
+            'card_id' => $card->id,
+        ]);
+        $current = (int) ($row->exists ? $row->quantidade : 0);
+
+        if ($current >= $max) {
+            $user->increment('cristais', $perDup);
+
+            return $perDup;
+        }
+
+        if (! $row->exists) {
+            $row->quantidade = 1;
+            $row->save();
+        } else {
+            $row->increment('quantidade');
+        }
+
+        return 0;
+    }
+
     /** @return array<int, int> card_id => quantidade possuída */
     public function ownedMap(User $user): array
     {
@@ -61,7 +96,7 @@ class PlayerCollectionService
             ->all();
     }
 
-    public function catalogForUser(User $user): Collection
+    public function catalogForUser(User $user): \Illuminate\Support\Collection
     {
         $this->ensureSynced($user);
         $owned = $this->ownedMap($user);
