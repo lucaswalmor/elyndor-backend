@@ -48,7 +48,7 @@ class CardShopService
     }
 
     /**
-     * @return array{duplicate_cristais: int, balance: array{cristais: int, moedas: int}}
+     * @return array{duplicate_cristais: int, duplicate_stashed: bool, balance: array{cristais: int, moedas: int}}
      */
     public function buy(User $user, int $cardId): array
     {
@@ -71,11 +71,12 @@ class CardShopService
             $u->cristais = (int) $u->cristais - $price;
             $u->save();
 
-            $conv = $this->collection->applyCardGain($u->fresh(), $card);
+            $gain = $this->collection->applyCardGain($u->fresh(), $card);
             $u->refresh();
 
             return [
-                'duplicate_cristais' => $conv,
+                'duplicate_cristais' => $gain['cristais'],
+                'duplicate_stashed' => $gain['stashed_duplicate'],
                 'balance' => [
                     'cristais' => (int) $u->cristais,
                     'moedas' => (int) $u->moedas,

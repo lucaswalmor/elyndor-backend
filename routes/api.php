@@ -38,6 +38,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/inventory/chests', [InventoryController::class, 'chestStacks']);
         Route::post('/inventory/chests/open', [InventoryController::class, 'openCosmeticChest']);
         Route::get('/inventory/chests/{slug}/preview', [InventoryController::class, 'chestPreview']);
+        Route::get('/inventory/duplicates', [InventoryController::class, 'lootDuplicates']);
         Route::get('/decks', [DeckController::class, 'index']);
         Route::post('/decks', [DeckController::class, 'store']);
         Route::put('/decks/{id}', [DeckController::class, 'update']);

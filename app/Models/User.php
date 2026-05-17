@@ -33,6 +33,11 @@ class User extends Authenticatable
         return $this->hasMany(PlayerCard::class);
     }
 
+    public function lootDuplicates(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PlayerLootDuplicate::class);
+    }
+
     public function avatar(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Avatar::class, 'avatar_id');

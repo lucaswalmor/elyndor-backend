@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Card;
 use App\Models\Chest;
 use App\Models\PlayerChestStack;
+use App\Models\PlayerLootDuplicate;
 use App\Services\Economy\CosmeticChestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -75,5 +77,64 @@ class InventoryController extends Controller
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 404);
         }
+    }
+
+    /** Itens repetidos (excedentes), estilo inventário de duplicatas — só leitura por agora. */
+    public function lootDuplicates(Request $request): JsonResponse
+    {
+        $userId = (int) $request->user()->id;
+
+        $rows = PlayerLootDuplicate::query()
+            ->where('user_id', $userId)
+            ->where('quantity', '>', 0)
+            ->orderByDesc('quantity')
+            ->orderBy('stack_key')
+            ->get();
+
+        $cardIds = $rows->pluck('card_id')->filter()->unique()->all();
+        $cards = $cardIds === []
+            ? collect()
+            : Card::query()->whereIn('id', $cardIds)->get()->keyBy('id');
+
+        $items = $rows->map(function (PlayerLootDuplicate $row) use ($cards) {
+            if ($row->card_id) {
+                $c = $cards->get($row->card_id);
+
+                return [
+                    'kind' => 'card',
+                    'quantity' => (int) $row->quantity,
+                    'card' => $c ? [
+                        'id' => $c->id,
+                        'nome' => $c->nome,
+                        'slug' => $c->slug,
+                        'raridade' => $c->raridade,
+                        'faccao' => $c->faccao,
+                        'imagem_path' => $c->imagem_path,
+                    ] : [
+                        'id' => (int) $row->card_id,
+                        'nome' => '(carta removida)',
+                        'slug' => null,
+                        'raridade' => 'comum',
+                        'faccao' => null,
+                        'imagem_path' => null,
+                    ],
+                ];
+            }
+
+            return [
+                'kind' => 'cosmetic',
+                'quantity' => (int) $row->quantity,
+                'asset_category' => $row->asset_category,
+                'asset_key' => $row->asset_key,
+            ];
+        })->values()->all();
+
+        $totalQty = (int) collect($items)->sum('quantity');
+
+        return response()->json([
+            'items' => $items,
+            'total_stacks' => count($items),
+            'total_quantity' => $totalQty,
+        ]);
     }
 }

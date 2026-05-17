@@ -7,6 +7,7 @@ use App\Models\Chest;
 use App\Models\ChestItem;
 use App\Models\PlayerChestStack;
 use App\Models\PlayerCosmeticUnlock;
+use App\Models\PlayerLootDuplicate;
 use App\Models\User;
 use App\Services\Collection\PlayerCollectionService;
 use Illuminate\Support\Collection;
@@ -115,7 +116,7 @@ class CosmeticChestService
             $u->save();
         }
 
-        $crystals = $this->collection->applyCardGain($u->fresh(), $card);
+        $gain = $this->collection->applyCardGain($u->fresh(), $card);
         $u->refresh();
 
         return [
@@ -130,7 +131,8 @@ class CosmeticChestService
                 'nome' => $card->nome,
                 'raridade' => $card->raridade,
             ],
-            'duplicate_cristais' => $crystals,
+            'duplicate_cristais' => $gain['cristais'],
+            'duplicate_stashed' => $gain['stashed_duplicate'],
             'pity_after' => $chest->pity_epic_every !== null ? (int) $u->premium_chest_pity : null,
             'remaining_quantity' => (int) $stack->quantity,
             'balance' => [
@@ -163,6 +165,15 @@ class CosmeticChestService
                 'asset_category' => $picked->asset_category,
                 'asset_key' => $picked->asset_key,
             ]);
+        } else {
+            PlayerLootDuplicate::addStack(
+                $userId,
+                PlayerLootDuplicate::stackKeyForCosmetic($picked->asset_category, $picked->asset_key),
+                null,
+                $picked->asset_category,
+                $picked->asset_key,
+                1,
+            );
         }
 
         if ($chest->pity_epic_every !== null) {
@@ -191,6 +202,7 @@ class CosmeticChestService
                 'display_tier' => $picked->display_tier,
                 'already_owned' => $alreadyOwned,
             ],
+            'duplicate_stashed' => $alreadyOwned,
             'remaining_quantity' => (int) $stack->quantity,
             'pity_after' => $chest->pity_epic_every !== null ? (int) $u->fresh()->premium_chest_pity : null,
         ];

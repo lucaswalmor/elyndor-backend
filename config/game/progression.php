@@ -33,7 +33,7 @@ return [
         'chest_pool_slug' => env('WEEKLY_CHEST_POOL_SLUG', 'padrao'),
     ],
 
-    /** Ao ganhar carta acima do limite de cópias (mesmo limite do deck). */
+    /** Legado: antes convertia excedente em cristais em `applyCardGain`. Hoje o excedente vai para `player_loot_duplicates`. */
     'duplicate_cristais' => [
         'comum' => 8,
         'rara' => 20,

@@ -5,6 +5,7 @@ namespace App\Services\Collection;
 use App\Models\Card;
 use App\Models\DeckCard;
 use App\Models\PlayerCard;
+use App\Models\PlayerLootDuplicate;
 use App\Models\User;
 
 class PlayerCollectionService
@@ -50,30 +51,24 @@ class PlayerCollectionService
     }
 
     /**
-     * Ganhos de uma carta: respeita teto de cópias do deck; excedente vira cristais.
+     * Ganhos de uma carta: a coleção (`player_cards.quantidade`) sobe sempre.
+     * Cópias além do limite usável no deck são também registadas em `player_loot_duplicates` (Repetidas).
      *
-     * @return int cristais ganhos por conversão
+     * @return array{cristais: int, stashed_duplicate: bool}
      */
-    public function applyCardGain(User $user, Card $card): int
+    public function applyCardGain(User $user, Card $card): array
     {
         $this->ensureSynced($user);
 
         $limits = config('game.progression.decks.copy_limits');
         $max = (int) ($limits[$card->raridade] ?? 3);
-        $dupTable = config('game.progression.duplicate_cristais');
-        $perDup = (int) ($dupTable[$card->raridade] ?? 10);
 
         $row = PlayerCard::firstOrNew([
             'user_id' => $user->id,
             'card_id' => $card->id,
         ]);
         $current = (int) ($row->exists ? $row->quantidade : 0);
-
-        if ($current >= $max) {
-            $user->increment('cristais', $perDup);
-
-            return $perDup;
-        }
+        $stashed = $current >= $max;
 
         if (! $row->exists) {
             $row->quantidade = 1;
@@ -82,7 +77,21 @@ class PlayerCollectionService
             $row->increment('quantidade');
         }
 
-        return 0;
+        if ($stashed) {
+            PlayerLootDuplicate::addStack(
+                (int) $user->id,
+                PlayerLootDuplicate::stackKeyForCard($card->id),
+                $card->id,
+                null,
+                null,
+                1,
+            );
+        }
+
+        return [
+            'cristais' => 0,
+            'stashed_duplicate' => $stashed,
+        ];
     }
 
     /** @return array<int, int> card_id => quantidade possuída */
