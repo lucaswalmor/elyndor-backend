@@ -37,6 +37,7 @@ class MatchViewBuilder
                 'energia_reservada' => $p['energia_reservada'] ?? 0,
                 'cartas_no_deck'    => count($p['deck']),
                 'card_back_slug'    => $mp?->user?->card_back_slug ?? 'padrao',
+                'match_board_slug'  => $mp?->user?->match_board_slug ?? 'padrao',
             ];
 
             if ($s === $slot) {

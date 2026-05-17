@@ -27,6 +27,7 @@ class UserResource extends JsonResource
             'cristais'         => $this->cristais ?? 0,
             'card_back_slug'   => $this->card_back_slug ?? 'padrao',
             'profile_bg_slug'  => $this->profile_bg_slug ?? 'padrao',
+            'match_board_slug' => $this->match_board_slug ?? 'padrao',
             'avatar_id'        => $this->avatar_id,
             'avatar_slug'      => $this->avatar?->slug,
             'avatar_label'     => $this->avatar?->label,

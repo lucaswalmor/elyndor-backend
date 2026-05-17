@@ -8,6 +8,7 @@ use App\Http\Resources\UserResource;
 use App\Models\Avatar;
 use App\Models\PlayerCosmeticUnlock;
 use App\Models\User;
+use App\Services\Cosmetics\CosmeticLabelService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,6 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        private CosmeticLabelService $cosmeticLabels,
+    ) {}
+
     public function starters(): JsonResponse
     {
         $rows = Avatar::query()
@@ -33,7 +38,7 @@ class ProfileController extends Controller
             ->with(['playerLevel', 'avatar'])
             ->orderByDesc('ranked_points')
             ->limit($limit)
-            ->get(['id', 'nickname', 'ranked_points', 'ranked_wins', 'ranked_losses', 'avatar_id', 'card_back_slug', 'profile_bg_slug']);
+            ->get(['id', 'nickname', 'ranked_points', 'ranked_wins', 'ranked_losses', 'avatar_id', 'card_back_slug', 'profile_bg_slug', 'match_board_slug']);
 
         return response()->json([
             'data' => PublicProfileResource::collection($users),
@@ -58,6 +63,7 @@ class ProfileController extends Controller
             'avatar_id' => ['sometimes', 'integer', Rule::exists('player_avatars', 'avatar_id')->where('user_id', $user->id)],
             'card_back_slug' => ['sometimes', 'string', 'max:50'],
             'profile_bg_slug' => ['sometimes', 'string', 'max:50'],
+            'match_board_slug' => ['sometimes', 'string', 'max:80'],
         ]);
 
         if (isset($data['avatar_id'])) {
@@ -81,6 +87,15 @@ class ProfileController extends Controller
             }
             $user->profile_bg_slug = $data['profile_bg_slug'];
         }
+        if (isset($data['match_board_slug'])) {
+            $key = $this->normalizedMatchBoardAssetKey($data['match_board_slug']);
+            if (! $this->userOwnsMatchBoard($user, $key)) {
+                throw ValidationException::withMessages([
+                    'match_board_slug' => ['Este tabuleiro não está desbloqueado.'],
+                ]);
+            }
+            $user->match_board_slug = $data['match_board_slug'];
+        }
         $user->save();
         $user->load(['playerLevel', 'avatar']);
 
@@ -90,29 +105,36 @@ class ProfileController extends Controller
     /**
      * Desbloqueios de cosméticos (baús). O frontend junta opções grátis (padrão).
      *
-     * @return array{card_backs: list<array{asset_key: string}>, profile_bgs: list<array{asset_key: string}>}
+     * @return array{card_backs: list<array{asset_key: string, label: string}>, profile_bgs: list<array{asset_key: string, label: string}>, match_boards: list<array{asset_key: string, label: string}>}
      */
     public function cosmeticUnlocks(Request $request): JsonResponse
     {
         $user = $request->user();
         $rows = PlayerCosmeticUnlock::query()
             ->where('user_id', $user->id)
-            ->whereIn('asset_category', ['card_back', 'profile_bg'])
+            ->whereIn('asset_category', ['card_back', 'profile_bg', 'match_board'])
             ->orderBy('asset_category')
             ->orderBy('asset_key')
             ->get(['asset_category', 'asset_key']);
 
         $cardBacks = $rows->where('asset_category', 'card_back')->values()->map(fn ($r) => [
             'asset_key' => $r->asset_key,
+            'label' => $this->cosmeticLabels->label('card_back', $r->asset_key),
         ])->all();
         $profileBgs = $rows->where('asset_category', 'profile_bg')->values()->map(fn ($r) => [
             'asset_key' => $r->asset_key,
+            'label' => $this->cosmeticLabels->label('profile_bg', $r->asset_key),
+        ])->all();
+        $matchBoards = $rows->where('asset_category', 'match_board')->values()->map(fn ($r) => [
+            'asset_key' => $r->asset_key,
+            'label' => $this->cosmeticLabels->label('match_board', $r->asset_key),
         ])->all();
 
         return response()->json([
             'data' => [
                 'card_backs' => $cardBacks,
                 'profile_bgs' => $profileBgs,
+                'match_boards' => $matchBoards,
             ],
         ]);
     }
@@ -176,6 +198,29 @@ class ProfileController extends Controller
         return PlayerCosmeticUnlock::query()
             ->where('user_id', $user->id)
             ->where('asset_category', 'profile_bg')
+            ->where('asset_key', $assetKey)
+            ->exists();
+    }
+
+    private function normalizedMatchBoardAssetKey(string $input): string
+    {
+        $s = strtolower(trim($input));
+
+        return match ($s) {
+            'padrao' => 'tabuleiro_padrao_v2',
+            default => $s,
+        };
+    }
+
+    private function userOwnsMatchBoard(User $user, string $assetKey): bool
+    {
+        if ($assetKey === 'tabuleiro_padrao_v2') {
+            return true;
+        }
+
+        return PlayerCosmeticUnlock::query()
+            ->where('user_id', $user->id)
+            ->where('asset_category', 'match_board')
             ->where('asset_key', $assetKey)
             ->exists();
     }

@@ -286,6 +286,13 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                         'drop_weight' => 1,
                         'sort_order' => 5,
                     ],
+                    [
+                        'asset_category' => 'match_board',
+                        'asset_key' => 'tabuleiro_ferrox',
+                        'display_tier' => 'epica',
+                        'drop_weight' => 1,
+                        'sort_order' => 6,
+                    ],
                 ],
             ],
         ];
