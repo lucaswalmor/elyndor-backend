@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Services\Ranked\RankedService;
+use App\Support\UserMatchStats;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,6 +18,12 @@ class PublicProfileResource extends JsonResource
         $rl = (int) ($this->ranked_losses ?? 0);
         $total = $rw + $rl;
         $pts = (int) ($this->ranked_points ?? 0);
+
+        $stats = UserMatchStats::summarize(
+            $this->match_mode_counts,
+            (int) ($this->total_matches_played ?? 0),
+            (int) ($this->playtime_seconds ?? 0),
+        );
 
         return [
             'id' => $this->id,
@@ -33,6 +40,12 @@ class PublicProfileResource extends JsonResource
             'ranked_wins' => $rw,
             'ranked_losses' => $rl,
             'ranked_winrate' => $total > 0 ? round($rw / $total, 4) : null,
+            'total_matches_played' => $stats['total_matches_played'],
+            'casual_matches_played' => $stats['casual_matches_played'],
+            'ranked_matches_played' => $stats['ranked_matches_played'],
+            'other_modes_matches_played' => $stats['other_modes_matches_played'],
+            'playtime_seconds' => $stats['playtime_seconds'],
+            'playtime_hours' => $stats['playtime_hours'],
         ];
     }
 }

@@ -38,7 +38,11 @@ class ProfileController extends Controller
             ->with(['playerLevel', 'avatar'])
             ->orderByDesc('ranked_points')
             ->limit($limit)
-            ->get(['id', 'nickname', 'ranked_points', 'ranked_wins', 'ranked_losses', 'avatar_id', 'card_back_slug', 'profile_bg_slug', 'match_board_slug']);
+            ->get([
+                'id', 'nickname', 'ranked_points', 'ranked_wins', 'ranked_losses',
+                'total_matches_played', 'match_mode_counts', 'playtime_seconds',
+                'avatar_id', 'card_back_slug', 'profile_bg_slug', 'match_board_slug',
+            ]);
 
         return response()->json([
             'data' => PublicProfileResource::collection($users),

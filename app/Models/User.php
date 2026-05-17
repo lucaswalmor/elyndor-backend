@@ -7,43 +7,47 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'nickname', 'email', 'password', 'moedas', 'cristais', 'card_back_slug', 'profile_bg_slug', 'match_board_slug', 'avatar_id', 'ranked_points', 'ranked_wins', 'ranked_losses', 'registration_device_id'])]
+#[Fillable(['name', 'nickname', 'email', 'password', 'moedas', 'cristais', 'card_back_slug', 'profile_bg_slug', 'match_board_slug', 'avatar_id', 'ranked_points', 'ranked_wins', 'ranked_losses', 'total_matches_played', 'match_mode_counts', 'playtime_seconds', 'registration_device_id'])]
 #[Hidden(['name', 'email', 'password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    public function playerLevel(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function playerLevel(): HasOne
     {
         return $this->hasOne(PlayerLevel::class);
     }
 
-    public function decks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function decks(): HasMany
     {
         return $this->hasMany(Deck::class);
     }
 
-    public function playerCards(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function playerCards(): HasMany
     {
         return $this->hasMany(PlayerCard::class);
     }
 
-    public function lootDuplicates(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function lootDuplicates(): HasMany
     {
         return $this->hasMany(PlayerLootDuplicate::class);
     }
 
-    public function avatar(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function avatar(): BelongsTo
     {
         return $this->belongsTo(Avatar::class, 'avatar_id');
     }
 
-    public function unlockedAvatars(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function unlockedAvatars(): BelongsToMany
     {
         return $this->belongsToMany(Avatar::class, 'player_avatars')->withTimestamps();
     }
@@ -59,6 +63,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'last_daily_win_bonus_date' => 'date',
+            'match_mode_counts' => 'array',
         ];
     }
 }
