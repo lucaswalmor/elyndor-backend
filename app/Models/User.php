@@ -28,6 +28,11 @@ class User extends Authenticatable
         return $this->hasMany(Deck::class);
     }
 
+    public function playerCards(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PlayerCard::class);
+    }
+
     /**
      * Get the attributes that should be cast.
      *

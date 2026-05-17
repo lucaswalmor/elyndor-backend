@@ -39,5 +39,11 @@ return [
     'decks' => [
         'max_per_user' => 5,
         'size' => 15,
+        'copy_limits' => [
+            'comum' => 3,
+            'rara' => 2,
+            'epica' => 1,
+            'lendaria' => 1,
+        ],
     ],
 ];

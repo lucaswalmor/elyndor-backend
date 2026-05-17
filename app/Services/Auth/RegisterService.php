@@ -8,11 +8,15 @@ use App\Models\Deck;
 use App\Models\DeckCard;
 use App\Models\PlayerLevel;
 use App\Models\User;
+use App\Services\Collection\PlayerCollectionService;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class RegisterService
 {
+    public function __construct(
+        private PlayerCollectionService $collection,
+    ) {}
+
     public function register(array $data): User
     {
         return DB::transaction(function () use ($data) {
@@ -31,13 +35,13 @@ class RegisterService
                 'is_padrao' => true,
             ]);
 
-            $this->attachStarterDeck($deck);
+            $this->attachStarterDeck($user, $deck);
 
             return $user->load('playerLevel');
         });
     }
 
-    private function attachStarterDeck(Deck $deck): void
+    private function attachStarterDeck(User $user, Deck $deck): void
     {
         $cfg = config('game.progression.starter_deck');
         $picked = collect();
@@ -52,12 +56,16 @@ class RegisterService
             Card::where('raridade', Raridade::Epica->value)->inRandomOrder()->limit($cfg['epica'])->pluck('id')
         );
 
+        $grant = [];
         foreach ($picked as $cardId) {
             DeckCard::create([
                 'deck_id' => $deck->id,
                 'card_id' => $cardId,
                 'quantidade' => 1,
             ]);
+            $grant[$cardId] = 1;
         }
+
+        $this->collection->grant($user, $grant);
     }
 }

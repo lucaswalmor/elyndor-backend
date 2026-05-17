@@ -4,13 +4,13 @@ namespace App\Services\Match;
 
 use App\Events\MatchFound;
 use App\Events\MatchStarted;
-use App\Models\Deck;
 use App\Enums\MatchStatus;
 use App\Models\GameMatch;
 use App\Models\MatchmakingQueue;
 use App\Models\MatchPlayer;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use App\Services\Deck\DeckService;
 use App\Services\Game\MatchInitializer;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -19,14 +19,12 @@ class MatchmakingService
 {
     public function __construct(
         private MatchInitializer $initializer,
+        private DeckService $deckService,
     ) {}
 
     public function join(User $user, string $modo, int $deckId): array
     {
-        $deck = Deck::where('user_id', $user->id)->where('id', $deckId)->first();
-        if (! $deck) {
-            throw new InvalidArgumentException('Deck inválido');
-        }
+        $deck = $this->deckService->assertPlayable($user, $deckId);
 
         if ($modo !== 'normal') {
             throw new InvalidArgumentException('Apenas modo normal na Fase A');

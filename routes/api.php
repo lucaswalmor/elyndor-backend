@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CollectionController;
 use App\Http\Controllers\Api\V1\DeckController;
 use App\Http\Controllers\Api\V1\DevController;
 use App\Http\Controllers\Api\V1\MatchController;
@@ -15,7 +16,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
 
+        Route::get('/collection', [CollectionController::class, 'index']);
         Route::get('/decks', [DeckController::class, 'index']);
+        Route::post('/decks', [DeckController::class, 'store']);
+        Route::put('/decks/{id}', [DeckController::class, 'update']);
+        Route::delete('/decks/{id}', [DeckController::class, 'destroy']);
 
         Route::post('/matchmaking/join', [MatchmakingController::class, 'join']);
         Route::delete('/matchmaking/leave', [MatchmakingController::class, 'leave']);
