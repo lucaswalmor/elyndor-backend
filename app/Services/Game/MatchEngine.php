@@ -320,6 +320,15 @@ class MatchEngine
             throw new InvalidArgumentException('Alvo inválido');
         }
 
+        // Taunt: se houver unidade inimiga com provocação, o atacante deve alvejá-la
+        $taunters = array_filter(
+            $estado['campo'][$opp],
+            fn ($u) => ($u['flags']['taunt_self'] ?? false) && ! ($u['silenciado'] ?? false)
+        );
+        if (! empty($taunters) && ! ($defender['flags']['taunt_self'] ?? false)) {
+            throw new InvalidArgumentException('Deve atacar a unidade com provocação primeiro');
+        }
+
         \Illuminate\Support\Facades\Log::info('[attackUnit] início do ataque', [
             'atacante'  => ['id' => $attacker['instancia_id'], 'card' => $attacker['card_id'], 'atk' => $attacker['ataque'] ?? '?', 'vida' => $attacker['vida_atual']],
             'defensor'  => ['id' => $defender['instancia_id'], 'card' => $defender['card_id'], 'vida' => $defender['vida_atual'], 'flags' => $defender['flags'] ?? []],

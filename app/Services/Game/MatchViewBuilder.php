@@ -77,6 +77,7 @@ class MatchViewBuilder
                 'vida'        => $card?->vida,
                 'faccao'      => $card?->faccao,
                 'imagem_path' => $card?->imagem_path,
+                'skills'      => array_map(fn ($s) => (array) $s, $card?->skills ?? []),
             ]);
         }, $mao);
     }
@@ -87,22 +88,24 @@ class MatchViewBuilder
             $card = CardCatalog::get($u['card_id']);
             $atk  = ($card?->ataque ?? 0) + ($u['bonus_ataque'] ?? 0);
 
+            // Informações da carta são sempre públicas no campo (visible to both players)
             $row = [
-                'instancia_id'          => $u['instancia_id'],
-                'card_id'               => $u['card_id'],
-                'vida_atual'            => $u['vida_atual'],
-                'ataque'                => $atk,
-                'pode_atacar'           => $u['pode_atacar'] ?? false,
+                'instancia_id'             => $u['instancia_id'],
+                'card_id'                  => $u['card_id'],
+                'vida_atual'               => $u['vida_atual'],
+                'ataque'                   => $atk,
+                'pode_atacar'              => $u['pode_atacar'] ?? false,
                 'foi_invocado_neste_turno' => $u['foi_invocado_neste_turno'] ?? false,
-                'efeitos'               => array_column($u['efeitos'] ?? [], 'tipo'),
-                'nome'                  => $card?->nome,
-                'imagem_path'           => $card?->imagem_path,
+                'efeitos'                  => array_column($u['efeitos'] ?? [], 'tipo'),
+                'nome'                     => $card?->nome,
+                'imagem_path'              => $card?->imagem_path,
+                'descricao'                => $card?->descricao,
+                'faccao'                   => $card?->faccao,
+                'skills'                   => array_map(fn ($s) => (array) $s, $card?->skills ?? []),
             ];
 
-            if ($full && $card) {
-                $row['descricao'] = $card->descricao;
-                $row['faccao']    = $card->faccao;
-                $row['flags']     = array_keys(array_filter($u['flags'] ?? []));
+            if ($full) {
+                $row['flags'] = array_keys(array_filter($u['flags'] ?? []));
             }
 
             return $row;
