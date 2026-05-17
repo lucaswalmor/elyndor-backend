@@ -201,7 +201,7 @@ class ChestAndWeeklyPoolSeeder extends Seeder
             'cristal_basico' => [
                 'chest' => [
                     'name' => 'Baú de cristal',
-                    'description' => 'Adiciona cartas em items (asset_category card + slug).',
+                    'description' => 'Pool fixo: 8 cartas comuns, 1 rara e 1 épica (slugs na BD).',
                     'cost_moedas' => null,
                     'cost_cristais' => $cristalCost ?: null,
                     'available_in_shop' => false,
@@ -209,12 +209,21 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                     'sort_order' => 10,
                     'pity_epic_every' => null,
                 ],
-                /* Preenche manualmente, por exemplo:
                 'items' => [
-                    ['asset_category' => 'card', 'asset_key' => 'bruxa-cinzenta', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 0],
+                    // 8 comuns
+                    ['asset_category' => 'card', 'asset_key' => 'cao-vulcanico', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 0],
+                    ['asset_category' => 'card', 'asset_key' => 'bruxa-cinzenta', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 1],
+                    ['asset_category' => 'card', 'asset_key' => 'morcego-igneo', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 2],
+                    ['asset_category' => 'card', 'asset_key' => 'aranha-lunar', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 3],
+                    ['asset_category' => 'card', 'asset_key' => 'espirito-da-raiz', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 4],
+                    ['asset_category' => 'card', 'asset_key' => 'sapo-toxico', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 5],
+                    ['asset_category' => 'card', 'asset_key' => 'drone-sentinela', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 6],
+                    ['asset_category' => 'card', 'asset_key' => 'corvo-funerario', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 7],
+                    // 1 rara
+                    ['asset_category' => 'card', 'asset_key' => 'carniceiro-de-brasas', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 8],
+                    // 1 épica
+                    ['asset_category' => 'card', 'asset_key' => 'tita-magmatico', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 9],
                 ],
-                */
-                'items' => [],
             ],
 
             'premium_padrao' => [
@@ -239,19 +248,43 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                         'sort_order' => 0,
                     ],
                     [
+                        'asset_category' => 'card',
+                        // Obrigatório: mesmo `slug` que em `cards.slug` (ex.: hífens, não underscores).
+                        'asset_key' => 'bruxa-cinzenta',
+                        'display_tier' => 'epica',
+                        'drop_weight' => 1,
+                        'sort_order' => 1,
+                    ],
+                    [
+                        'asset_category' => 'card',
+                        // Obrigatório: mesmo `slug` que em `cards.slug` (ex.: hífens, não underscores).
+                        'asset_key' => 'tita-magmatico',
+                        'display_tier' => 'epica',
+                        'drop_weight' => 1,
+                        'sort_order' => 2,
+                    ],
+                    [
+                        'asset_category' => 'card',
+                        // Obrigatório: mesmo `slug` que em `cards.slug` (ex.: hífens, não underscores).
+                        'asset_key' => 'morcego-igneo',
+                        'display_tier' => 'epica',
+                        'drop_weight' => 1,
+                        'sort_order' => 3,
+                    ],
+                    [
                         'asset_category' => 'card_back',
                         // Nome do PNG em imagens/frame_cards/ sem extensão (ex.: verso_da_carta.png).
                         'asset_key' => 'verso_da_carta',
                         'display_tier' => 'epica',
                         'drop_weight' => 1,
-                        'sort_order' => 1,
+                        'sort_order' => 4,
                     ],
                     [
                         'asset_category' => 'profile_bg',
                         'asset_key' => 'ui_bg_profile_infernal',
                         'display_tier' => 'epica',
                         'drop_weight' => 1,
-                        'sort_order' => 2,
+                        'sort_order' => 5,
                     ],
                 ],
             ],

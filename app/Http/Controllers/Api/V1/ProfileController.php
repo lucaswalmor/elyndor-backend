@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\PublicProfileResource;
 use App\Http\Resources\UserResource;
 use App\Models\Avatar;
+use App\Models\PlayerCosmeticUnlock;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class ProfileController extends Controller
 {
@@ -31,7 +33,7 @@ class ProfileController extends Controller
             ->with(['playerLevel', 'avatar'])
             ->orderByDesc('ranked_points')
             ->limit($limit)
-            ->get(['id', 'nickname', 'ranked_points', 'ranked_wins', 'ranked_losses', 'avatar_id']);
+            ->get(['id', 'nickname', 'ranked_points', 'ranked_wins', 'ranked_losses', 'avatar_id', 'card_back_slug', 'profile_bg_slug']);
 
         return response()->json([
             'data' => PublicProfileResource::collection($users),
@@ -62,15 +64,57 @@ class ProfileController extends Controller
             $user->avatar_id = $data['avatar_id'];
         }
         if (isset($data['card_back_slug'])) {
+            $key = $this->normalizedCardBackAssetKey($data['card_back_slug']);
+            if (! $this->userOwnsCardBack($user, $key)) {
+                throw ValidationException::withMessages([
+                    'card_back_slug' => ['Este verso não está desbloqueado.'],
+                ]);
+            }
             $user->card_back_slug = $data['card_back_slug'];
         }
         if (isset($data['profile_bg_slug'])) {
+            $key = $this->normalizedProfileBgAssetKey($data['profile_bg_slug']);
+            if (! $this->userOwnsProfileBg($user, $key)) {
+                throw ValidationException::withMessages([
+                    'profile_bg_slug' => ['Este fundo não está desbloqueado.'],
+                ]);
+            }
             $user->profile_bg_slug = $data['profile_bg_slug'];
         }
         $user->save();
         $user->load(['playerLevel', 'avatar']);
 
         return response()->json(['data' => new UserResource($user)]);
+    }
+
+    /**
+     * Desbloqueios de cosméticos (baús). O frontend junta opções grátis (padrão).
+     *
+     * @return array{card_backs: list<array{asset_key: string}>, profile_bgs: list<array{asset_key: string}>}
+     */
+    public function cosmeticUnlocks(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $rows = PlayerCosmeticUnlock::query()
+            ->where('user_id', $user->id)
+            ->whereIn('asset_category', ['card_back', 'profile_bg'])
+            ->orderBy('asset_category')
+            ->orderBy('asset_key')
+            ->get(['asset_category', 'asset_key']);
+
+        $cardBacks = $rows->where('asset_category', 'card_back')->values()->map(fn ($r) => [
+            'asset_key' => $r->asset_key,
+        ])->all();
+        $profileBgs = $rows->where('asset_category', 'profile_bg')->values()->map(fn ($r) => [
+            'asset_key' => $r->asset_key,
+        ])->all();
+
+        return response()->json([
+            'data' => [
+                'card_backs' => $cardBacks,
+                'profile_bgs' => $profileBgs,
+            ],
+        ]);
     }
 
     public function unlockSummary(Request $request): JsonResponse
@@ -87,5 +131,52 @@ class ProfileController extends Controller
             'data' => $avatars,
             'equipado_id' => $user->avatar_id,
         ]);
+    }
+
+    private function normalizedCardBackAssetKey(string $input): string
+    {
+        $s = strtolower(trim($input));
+
+        return match ($s) {
+            'padrao' => 'verso_padrao',
+            'comum' => 'verso_comum',
+            default => $s,
+        };
+    }
+
+    private function normalizedProfileBgAssetKey(string $input): string
+    {
+        $s = strtolower(trim($input));
+
+        return match ($s) {
+            'padrao' => 'ui_bg_profile_standard',
+            default => $s,
+        };
+    }
+
+    private function userOwnsCardBack(User $user, string $assetKey): bool
+    {
+        if (in_array($assetKey, ['verso_padrao', 'verso_comum'], true)) {
+            return true;
+        }
+
+        return PlayerCosmeticUnlock::query()
+            ->where('user_id', $user->id)
+            ->where('asset_category', 'card_back')
+            ->where('asset_key', $assetKey)
+            ->exists();
+    }
+
+    private function userOwnsProfileBg(User $user, string $assetKey): bool
+    {
+        if ($assetKey === 'ui_bg_profile_standard') {
+            return true;
+        }
+
+        return PlayerCosmeticUnlock::query()
+            ->where('user_id', $user->id)
+            ->where('asset_category', 'profile_bg')
+            ->where('asset_key', $assetKey)
+            ->exists();
     }
 }

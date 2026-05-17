@@ -25,6 +25,8 @@ class PublicProfileResource extends JsonResource
             'avatar_slug' => $this->avatar?->slug,
             'avatar_label' => $this->avatar?->label,
             'avatar_image_file' => $this->avatar?->image_file,
+            'card_back_slug' => $this->card_back_slug ?? 'padrao',
+            'profile_bg_slug' => $this->profile_bg_slug ?? 'padrao',
             'ranked_points' => $pts,
             'divisao' => $ranked->divisionKeyForPoints($pts),
             'divisao_label' => $ranked->divisionLabelForPoints($pts),
