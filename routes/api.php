@@ -12,9 +12,17 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login', [AuthController::class, 'login']);
 
+    Route::get('/avatars/starters', [\App\Http\Controllers\Api\V1\ProfileController::class, 'starters']);
+    Route::get('/ranked/leaderboard', [\App\Http\Controllers\Api\V1\ProfileController::class, 'leaderboard']);
+    Route::get('/profile/{nickname}', [\App\Http\Controllers\Api\V1\ProfileController::class, 'show'])
+        ->where('nickname', '[a-zA-Z0-9_-]+');
+
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
+
+        Route::put('/profile/cosmetics', [\App\Http\Controllers\Api\V1\ProfileController::class, 'updateCosmetics']);
+        Route::get('/profile/me/avatars', [\App\Http\Controllers\Api\V1\ProfileController::class, 'unlockSummary']);
 
         Route::get('/collection', [CollectionController::class, 'index']);
         Route::get('/decks', [DeckController::class, 'index']);

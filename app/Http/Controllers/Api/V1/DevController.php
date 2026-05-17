@@ -14,7 +14,7 @@ class DevController extends Controller
             abort(404);
         }
 
-        $id = $matchmaking->tryPair('normal');
+        $id = $matchmaking->tryPairNormal();
 
         return response()->json([
             'message' => $id ? 'Partida criada' : 'Fila insuficiente (precisa 2 jogadores)',

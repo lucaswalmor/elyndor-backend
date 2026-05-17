@@ -9,38 +9,64 @@ use App\Models\GameMatch;
 use App\Models\MatchmakingQueue;
 use App\Models\MatchPlayer;
 use App\Models\User;
-use Illuminate\Support\Facades\Log;
+use App\Services\AntiAbuse\AntiAbuseService;
 use App\Services\Deck\DeckService;
 use App\Services\Game\MatchInitializer;
-use Illuminate\Support\Facades\DB;
-use InvalidArgumentException;
+use App\Services\Ranked\RankedService;
 
 class MatchmakingService
 {
     public function __construct(
         private MatchInitializer $initializer,
         private DeckService $deckService,
+        private RankedService $ranked,
+        private AntiAbuseService $antiAbuse,
     ) {}
 
-    public function join(User $user, string $modo, int $deckId): array
+    /**
+     * @param  array{device_id?: string|null, client_type?: string|null}  $meta
+     */
+    public function join(User $user, string $modo, int $deckId, array $meta = []): array
     {
-        $deck = $this->deckService->assertPlayable($user, $deckId);
+        $this->deckService->assertPlayable($user, $deckId);
+        $user->loadMissing('playerLevel');
 
-        if ($modo !== 'normal') {
-            throw new InvalidArgumentException('Apenas modo normal na Fase A');
+        if ($modo === 'ranqueada') {
+            if (! $this->ranked->userMeetsRankedLevel($user)) {
+                throw new InvalidArgumentException(
+                    'Ranqueada disponível a partir do nível '.$this->ranked->minLevel().'.'
+                );
+            }
+        } elseif ($modo !== 'normal') {
+            throw new InvalidArgumentException('Modo de partida inválido.');
         }
 
         MatchmakingQueue::where('user_id', $user->id)->delete();
 
-        MatchmakingQueue::create([
+        $ip = request()?->ip();
+        $deviceId = $meta['device_id'] ?? null;
+
+        $row = [
             'user_id' => $user->id,
             'modo' => $modo,
             'deck_id' => $deckId,
             'nivel' => $user->playerLevel?->nivel ?? 1,
             'entrou_na_fila_em' => now(),
-        ]);
+            'ip_address' => $ip,
+            'device_id' => $deviceId ? substr($deviceId, 0, 80) : null,
+        ];
 
-        $paired = $this->tryPair($modo);
+        if ($modo === 'ranqueada') {
+            $row['pontos_ranked'] = $user->ranked_points ?? 0;
+            $row['divisao'] = $this->ranked->divisionKeyForPoints((int) ($user->ranked_points ?? 0));
+        } else {
+            $row['pontos_ranked'] = 0;
+            $row['divisao'] = null;
+        }
+
+        MatchmakingQueue::create($row);
+
+        $paired = $modo === 'ranqueada' ? $this->tryPairRanked() : $this->tryPairNormal();
 
         if ($paired) {
             return [
@@ -65,7 +91,6 @@ class MatchmakingService
     {
         $entry = MatchmakingQueue::where('user_id', $user->id)->first();
         if (! $entry) {
-            // Usuário saiu da fila — verifica se já tem partida ativa (pode ter perdido evento WS)
             $player = MatchPlayer::where('user_id', $user->id)
                 ->whereHas('match', fn ($q) => $q->whereIn('status', [
                     MatchStatus::Aguardando->value,
@@ -81,7 +106,7 @@ class MatchmakingService
             return ['status' => 'fora_da_fila'];
         }
 
-        $paired = $this->tryPair($entry->modo);
+        $paired = $entry->modo === 'ranqueada' ? $this->tryPairRanked() : $this->tryPairNormal();
         if ($paired) {
             return ['status' => 'partida_encontrada', 'match_id' => $paired];
         }
@@ -89,21 +114,79 @@ class MatchmakingService
         return [
             'status' => 'aguardando',
             'tempo_na_fila_segundos' => now()->diffInSeconds($entry->entrou_na_fila_em),
+            'modo' => $entry->modo,
         ];
     }
 
-    public function tryPair(string $modo): ?int
+    public function tryPairNormal(): ?int
     {
-        $waiting = MatchmakingQueue::where('modo', $modo)->orderBy('entrou_na_fila_em')->limit(2)->get();
+        $waiting = MatchmakingQueue::where('modo', 'normal')->orderBy('entrou_na_fila_em')->limit(2)->get();
         if ($waiting->count() < 2) {
             return null;
         }
 
-        return DB::transaction(function () use ($waiting, $modo) {
-            $a = $waiting[0];
-            $b = $waiting[1];
+        return $this->createMatchFromQueue($waiting[0], $waiting[1], 'normal');
+    }
 
-            MatchmakingQueue::whereIn('user_id', [$a->user_id, $b->user_id])->delete();
+    public function tryPairRanked(): ?int
+    {
+        $queues = MatchmakingQueue::where('modo', 'ranqueada')->orderBy('entrou_na_fila_em')->get();
+        if ($queues->count() < 2) {
+            return null;
+        }
+
+        foreach ($queues as $i => $a) {
+            $waitA = now()->diffInSeconds($a->entrou_na_fila_em);
+            foreach ($queues as $j => $b) {
+                if ($i >= $j) {
+                    continue;
+                }
+                if (! $this->antiAbuse->allowsRankedPair($a, $b)) {
+                    continue;
+                }
+                $maxWait = max($waitA, now()->diffInSeconds($b->entrou_na_fila_em));
+                $divA = (string) $a->divisao;
+                $divB = (string) $b->divisao;
+                if (! $this->ranked->pairingAllowed($divA, $divB, $maxWait)) {
+                    continue;
+                }
+
+                return $this->createMatchFromQueue($a, $b, 'ranqueada');
+            }
+        }
+
+        return null;
+    }
+
+    /** @deprecated use tryPairNormal em código novo */
+    public function tryPair(string $modo): ?int
+    {
+        return $modo === 'ranqueada' ? $this->tryPairRanked() : $this->tryPairNormal();
+    }
+
+    private function createMatchFromQueue(MatchmakingQueue $a, MatchmakingQueue $b, string $modo): ?int
+    {
+        return DB::transaction(function () use ($a, $b, $modo) {
+            $freshA = MatchmakingQueue::where('user_id', $a->user_id)->lockForUpdate()->first();
+            $freshB = MatchmakingQueue::where('user_id', $b->user_id)->lockForUpdate()->first();
+            if (! $freshA || ! $freshB || $freshA->modo !== $modo || $freshB->modo !== $modo) {
+                return null;
+            }
+
+            if ($modo === 'ranqueada') {
+                $maxWait = max(
+                    now()->diffInSeconds($freshA->entrou_na_fila_em),
+                    now()->diffInSeconds($freshB->entrou_na_fila_em)
+                );
+                if (! $this->ranked->pairingAllowed((string) $freshA->divisao, (string) $freshB->divisao, $maxWait)) {
+                    return null;
+                }
+                if (! $this->antiAbuse->allowsRankedPair($freshA, $freshB)) {
+                    return null;
+                }
+            }
+
+            MatchmakingQueue::whereIn('user_id', [$freshA->user_id, $freshB->user_id])->delete();
 
             $match = GameMatch::create([
                 'modo' => $modo,
@@ -112,22 +195,22 @@ class MatchmakingService
 
             $p1 = MatchPlayer::create([
                 'match_id' => $match->id,
-                'user_id' => $a->user_id,
-                'deck_id' => $a->deck_id,
+                'user_id' => $freshA->user_id,
+                'deck_id' => $freshA->deck_id,
                 'player_slot' => 1,
             ]);
             $p2 = MatchPlayer::create([
                 'match_id' => $match->id,
-                'user_id' => $b->user_id,
-                'deck_id' => $b->deck_id,
+                'user_id' => $freshB->user_id,
+                'deck_id' => $freshB->deck_id,
                 'player_slot' => 2,
             ]);
 
             $this->initializer->start($match, $p1, $p2);
             $match->refresh();
 
-            $userA = User::find($a->user_id);
-            $userB = User::find($b->user_id);
+            $userA = User::find($freshA->user_id);
+            $userB = User::find($freshB->user_id);
 
             broadcast(new MatchFound($match, $userB, $userA));
             broadcast(new MatchFound($match, $userA, $userB));

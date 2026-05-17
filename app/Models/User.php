@@ -11,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'nickname', 'email', 'password', 'moedas', 'cristais', 'card_back_slug'])]
+#[Fillable(['name', 'nickname', 'email', 'password', 'moedas', 'cristais', 'card_back_slug', 'profile_bg_slug', 'avatar_id', 'ranked_points', 'ranked_wins', 'ranked_losses', 'registration_device_id'])]
 #[Hidden(['name', 'email', 'password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -31,6 +31,16 @@ class User extends Authenticatable
     public function playerCards(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(PlayerCard::class);
+    }
+
+    public function avatar(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Avatar::class, 'avatar_id');
+    }
+
+    public function unlockedAvatars(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Avatar::class, 'player_avatars')->withTimestamps();
     }
 
     /**

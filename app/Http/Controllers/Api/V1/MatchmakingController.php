@@ -19,11 +19,21 @@ class MatchmakingController extends Controller
         $request->validate([
             'modo' => 'required|in:normal,ranqueada',
             'deck_id' => 'required|integer',
+            'device_id' => ['nullable', 'string', 'max:80'],
+            'client_type' => ['nullable', 'in:web,desktop'],
         ]);
 
         try {
             return response()->json(
-                $this->matchmaking->join($request->user(), $request->modo, (int) $request->deck_id)
+                $this->matchmaking->join(
+                    $request->user(),
+                    $request->modo,
+                    (int) $request->deck_id,
+                    [
+                        'device_id' => $request->input('device_id'),
+                        'client_type' => $request->input('client_type'),
+                    ]
+                )
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 400);

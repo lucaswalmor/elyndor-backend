@@ -28,6 +28,9 @@ class RegisterRequest extends FormRequest
             'nickname' => ['required', 'string', 'min:3', 'max:30', 'unique:users,nickname', 'regex:/^[a-zA-Z0-9_\-]+$/'],
             'email'    => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'avatar_slug' => ['required', 'string', 'max:40', \Illuminate\Validation\Rule::exists('avatars', 'slug')->where('is_starter', true)],
+            'device_id' => ['nullable', 'string', 'max:80'],
+            'client_type' => ['nullable', 'in:web,desktop'],
         ];
     }
 }

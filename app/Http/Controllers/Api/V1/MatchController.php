@@ -128,7 +128,7 @@ class MatchController extends Controller
         ]);
 
         defer(function () use ($match, $winner, $motivo) {
-            broadcast(new \App\Events\MatchFinished($match, $winner, $motivo));
+            event(new \App\Events\MatchFinished($match, $winner, $motivo));
             \Illuminate\Support\Facades\Log::info("[surrender] MatchFinished broadcast enviado", [
                 'match_id'  => $match->id,
                 'motivo'    => $motivo,
