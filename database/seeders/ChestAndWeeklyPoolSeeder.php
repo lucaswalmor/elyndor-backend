@@ -12,6 +12,8 @@ use Illuminate\Database\Seeder;
  *
  * Campos do baú: name, description (texto para o jogador), cost_moedas, cost_cristais,
  * available_in_shop, active, sort_order, pity_epic_every (null = sem pity).
+ *
+ * Regra de moeda: loja premium (facções, cosméticos, baú premium) = moedas; baú de cristal = cristais.
  */
 class ChestAndWeeklyPoolSeeder extends Seeder
 {
@@ -76,15 +78,35 @@ class ChestAndWeeklyPoolSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | Baús de cartas por facção (loja — cristais)
+            | Baú de cristal (loja — cristais): pool com todas as cartas comuns + 4 raras + 2 épicas da coleção base.
+            | Cada abertura sorteia 1 carta do pool (pesos iguais por linha).
+            |--------------------------------------------------------------------------
+            */
+            'chest_cristal_basico' => [
+                'chest' => [
+                    'name' => 'Baú de cristal',
+                    'description' => 'Uma carta aleatória: todas as comuns da coleção base, 4 raras e 2 épicas destacadas — compra com cristais.',
+                    'cost_moedas' => null,
+                    'cost_cristais' => max(1, (int) config('game.chests.cristal_basico.cost_cristais', 800)),
+                    'available_in_shop' => true,
+                    'active' => true,
+                    'sort_order' => 15,
+                    'pity_epic_every' => null,
+                ],
+                'items' => $this->itensBauCristalBasico(),
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Baús de cartas por facção (loja — moedas / premium)
             |--------------------------------------------------------------------------
             */
             'bau_cartas_infernais' => [
                 'chest' => [
                     'name' => 'Baú de cartas — Infernais',
                     'description' => 'Uma carta aleatória entre as unidades da facção Infernais.',
-                    'cost_moedas' => null,
-                    'cost_cristais' => 950,
+                    'cost_moedas' => 950,
+                    'cost_cristais' => null,
                     'available_in_shop' => true,
                     'active' => true,
                     'sort_order' => 20,
@@ -103,8 +125,8 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                 'chest' => [
                     'name' => 'Baú de cartas — Natureza',
                     'description' => 'Uma carta aleatória entre as unidades da facção Natureza.',
-                    'cost_moedas' => null,
-                    'cost_cristais' => 950,
+                    'cost_moedas' => 950,
+                    'cost_cristais' => null,
                     'available_in_shop' => true,
                     'active' => true,
                     'sort_order' => 21,
@@ -123,8 +145,8 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                 'chest' => [
                     'name' => 'Baú de cartas — Mecânicos',
                     'description' => 'Uma carta aleatória entre as unidades da facção Mecânicos.',
-                    'cost_moedas' => null,
-                    'cost_cristais' => 950,
+                    'cost_moedas' => 950,
+                    'cost_cristais' => null,
                     'available_in_shop' => true,
                     'active' => true,
                     'sort_order' => 22,
@@ -143,8 +165,8 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                 'chest' => [
                     'name' => 'Baú de cartas — Mortos-vivos',
                     'description' => 'Uma carta aleatória entre as unidades da facção Mortos-vivos.',
-                    'cost_moedas' => null,
-                    'cost_cristais' => 950,
+                    'cost_moedas' => 950,
+                    'cost_cristais' => null,
                     'available_in_shop' => true,
                     'active' => true,
                     'sort_order' => 23,
@@ -163,8 +185,8 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                 'chest' => [
                     'name' => 'Baú de cartas — Celestiais',
                     'description' => 'Uma carta aleatória entre as unidades Celestiais (Vazio).',
-                    'cost_moedas' => null,
-                    'cost_cristais' => 950,
+                    'cost_moedas' => 950,
+                    'cost_cristais' => null,
                     'available_in_shop' => true,
                     'active' => true,
                     'sort_order' => 24,
@@ -182,15 +204,15 @@ class ChestAndWeeklyPoolSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | Cosméticos: fundos de perfil (facção = comum; restantes = épico)
+            | Cosméticos: fundos de perfil (loja — moedas / premium)
             |--------------------------------------------------------------------------
             */
             'bau_cosmetico_fundos' => [
                 'chest' => [
                     'name' => 'Baú de fundos de perfil',
                     'description' => 'Destaca o teu perfil: fundos alinhados com cada facção ou visuais premium.',
-                    'cost_moedas' => null,
-                    'cost_cristais' => 1100,
+                    'cost_moedas' => 1100,
+                    'cost_cristais' => null,
                     'available_in_shop' => true,
                     'active' => true,
                     'sort_order' => 30,
@@ -212,15 +234,15 @@ class ChestAndWeeklyPoolSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | Cosméticos: tabuleiros (estética de facção = comum; linha premium = épico)
+            | Cosméticos: tabuleiros (loja — moedas / premium)
             |--------------------------------------------------------------------------
             */
             'bau_cosmetico_tabuleiros' => [
                 'chest' => [
                     'name' => 'Baú de tabuleiros',
                     'description' => 'Personaliza o campo de batalha com tabuleiros temáticos ou acabamentos premium.',
-                    'cost_moedas' => null,
-                    'cost_cristais' => 1100,
+                    'cost_moedas' => 1100,
+                    'cost_cristais' => null,
                     'available_in_shop' => true,
                     'active' => true,
                     'sort_order' => 31,
@@ -241,15 +263,15 @@ class ChestAndWeeklyPoolSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | Versos de carta (comum / épico / lendário) + pity épico+
+            | Versos de carta (loja — moedas / premium; pity épico+ conforme config)
             |--------------------------------------------------------------------------
             */
             'bau_cosmetico_versos' => [
                 'chest' => [
                     'name' => 'Baú de versos',
                     'description' => 'Sorteia um verso para as tuas cartas na partida. Inclui linhas comuns, épicas e lendárias.',
-                    'cost_moedas' => null,
-                    'cost_cristais' => 1300,
+                    'cost_moedas' => 1300,
+                    'cost_cristais' => null,
                     'available_in_shop' => true,
                     'active' => true,
                     'sort_order' => 32,
@@ -270,6 +292,62 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                 ],
             ],
         ];
+    }
+
+    /**
+     * Baú de cristal: todas as cartas comuns da coleção base (CardSeeder) + 4 raras + 2 épicas.
+     * Sem lendárias. Pesos iguais por linha (1 sorteio = 1 carta).
+     *
+     * @return list<array{asset_category: string, asset_key: string, display_tier: string, drop_weight: int, sort_order: int}>
+     */
+    private function itensBauCristalBasico(): array
+    {
+        $sort = 0;
+        $row = function (
+            string $slug,
+            string $tier,
+        ) use (&$sort): array {
+            return [
+                'asset_category' => 'card',
+                'asset_key' => $slug,
+                'display_tier' => $tier,
+                'drop_weight' => 1,
+                'sort_order' => $sort++,
+            ];
+        };
+
+        $rows = [];
+        foreach ([
+            'cao-vulcanico',
+            'bruxa-cinzenta',
+            'morcego-igneo',
+            'aranha-lunar',
+            'espirito-da-raiz',
+            'sapo-toxico',
+            'cervo-fantasma',
+            'drone-sentinela',
+            'aranha-de-sucata',
+            'corvo-funerario',
+            'monge-apodrecido',
+            'crianca-do-veu',
+            'oraculo-solar',
+            'navegante-astral',
+        ] as $slug) {
+            $rows[] = $row($slug, 'comum');
+        }
+        foreach ([
+            'carniceiro-de-brasas',
+            'guardiao-do-musgo',
+            'executor-de-ferro',
+            'aberracao-do-vazio',
+        ] as $slug) {
+            $rows[] = $row($slug, 'rara');
+        }
+        foreach (['tita-magmatico', 'serafim-partido'] as $slug) {
+            $rows[] = $row($slug, 'epica');
+        }
+
+        return $rows;
     }
 
     /**
