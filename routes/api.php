@@ -26,6 +26,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
 
         Route::put('/profile/cosmetics', [\App\Http\Controllers\Api\V1\ProfileController::class, 'updateCosmetics']);
+        Route::get('/profile/me/avatars', [\App\Http\Controllers\Api\V1\ProfileController::class, 'unlockSummary']);
         Route::get('/profile/me/cosmetic-unlocks', [\App\Http\Controllers\Api\V1\ProfileController::class, 'cosmeticUnlocks']);
 
         Route::get('/collection', [CollectionController::class, 'index']);
