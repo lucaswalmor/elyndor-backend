@@ -30,6 +30,7 @@ class UserResource extends JsonResource
             'avatar_id'        => $this->avatar_id,
             'avatar_slug'      => $this->avatar?->slug,
             'avatar_label'     => $this->avatar?->label,
+            'avatar_image_file' => $this->avatar?->image_file,
             'ranked_points'    => $pts,
             'divisao'          => $ranked->divisionKeyForPoints($pts),
             'divisao_label'    => $ranked->divisionLabelForPoints($pts),
@@ -37,7 +38,6 @@ class UserResource extends JsonResource
             'ranked_losses'    => $rl,
             'ranked_winrate'   => $tot > 0 ? round($rw / $tot, 4) : null,
             'ranked_min_level' => $ranked->minLevel(),
-            'premium_chest_pity' => (int) ($this->premium_chest_pity ?? 0),
         ];
     }
 }

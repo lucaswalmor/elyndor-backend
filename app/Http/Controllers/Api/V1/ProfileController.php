@@ -17,8 +17,9 @@ class ProfileController extends Controller
     {
         $rows = Avatar::query()
             ->where('is_starter', true)
+            ->whereNotNull('image_file')
             ->orderBy('sort_order')
-            ->get(['id', 'slug', 'label']);
+            ->get(['id', 'slug', 'label', 'image_file']);
 
         return response()->json(['data' => $rows]);
     }
@@ -75,7 +76,12 @@ class ProfileController extends Controller
     public function unlockSummary(Request $request): JsonResponse
     {
         $user = $request->user();
-        $avatars = $user->unlockedAvatars()->orderBy('sort_order')->get(['avatars.id', 'avatars.slug', 'avatars.label']);
+        $avatars = $user->unlockedAvatars()
+            ->whereNotNull('avatars.image_file')
+            ->orderBy('sort_order')
+            ->get([
+                'avatars.id', 'avatars.slug', 'avatars.label', 'avatars.image_file',
+            ]);
 
         return response()->json([
             'data' => $avatars,

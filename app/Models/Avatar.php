@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Avatar extends Model
 {
-    protected $fillable = ['slug', 'label', 'sort_order', 'is_starter'];
+    protected $fillable = ['slug', 'label', 'image_file', 'sort_order', 'is_starter'];
 
     protected function casts(): array
     {
