@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Chest;
 use App\Services\Economy\ChestOpeningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,14 @@ class EconomyController extends Controller
     public function chestOpen(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'type' => ['required', 'string', Rule::in(['cristal_basico', 'premium_padrao'])],
+            'type' => [
+                'required',
+                'string',
+                'max:80',
+                Rule::exists('chests', 'slug')->where(
+                    fn ($q) => $q->where('available_in_shop', true)->where('active', true)
+                ),
+            ],
             'quantity' => ['sometimes', 'integer', 'min:1', 'max:999999'],
         ]);
 
@@ -36,13 +44,21 @@ class EconomyController extends Controller
 
     public function chestPrices(): JsonResponse
     {
+        $chests = Chest::query()
+            ->where('available_in_shop', true)
+            ->where('active', true)
+            ->orderBy('sort_order')
+            ->get(['slug', 'name', 'description', 'cost_cristais', 'cost_moedas', 'pity_epic_every']);
+
         return response()->json([
-            'cristal_basico' => [
-                'cost_cristais' => (int) config('game.chests.cristal_basico.cost_cristais'),
-            ],
-            'premium_padrao' => [
-                'cost_moedas' => (int) config('game.chests.premium_padrao.cost_moedas'),
-            ],
+            'chests' => $chests->map(fn (Chest $c) => [
+                'slug' => $c->slug,
+                'name' => $c->name,
+                'description' => $c->description,
+                'cost_cristais' => $c->cost_cristais,
+                'cost_moedas' => $c->cost_moedas,
+                'pity_epic_every' => $c->pity_epic_every,
+            ])->values()->all(),
             'pity_epic_every' => (int) config('game.chests.pity_epic_every'),
         ]);
     }

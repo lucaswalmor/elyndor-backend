@@ -8,180 +8,31 @@ use App\Models\WeeklyChestPool;
 use Illuminate\Database\Seeder;
 
 /**
- * Seeder responsável por:
- * - criar/atualizar os baús (`chests`)
- * - criar os itens de loot (`chest_items`)
- * - configurar o pool semanal padrão (`weekly_chest_pools`)
+ * Catálogo oficial de baús + pool semanal. Editar apenas o método catalogoBaús().
  *
- * ============================================================================
- * ESTRUTURA DO CATÁLOGO
- * ============================================================================
- *
- * Cada baú possui a seguinte estrutura:
- *
- * 'slug_do_bau' => [
- *     'chest' => [],
- *     'items' => [],
- * ]
- *
- * O slug é o identificador fixo do baú usado no backend, API e frontend.
- *
- *
- * ============================================================================
- * CAMPOS DE `chest`
- * ============================================================================
- *
- * name
- * Nome exibido para o jogador.
- *
- * description
- * Texto descritivo do baú.
- *
- * cost_moedas
- * Preço em moedas premium.
- * Use null caso o baú não possa ser comprado com moedas.
- *
- * cost_cristais
- * Preço em cristais.
- * Use null caso o baú não possa ser comprado com cristais.
- *
- * available_in_shop
- * Define se o baú aparece na loja do jogo.
- *
- * active
- * Define se o baú está ativo/disponível.
- *
- * sort_order
- * Ordem de exibição na interface.
- * Menor número = aparece primeiro.
- *
- * pity_epic_every
- * Sistema pity.
- * Garante recompensa épica ou superior após X aberturas.
- * Use null para desativar.
- *
- *
- * ============================================================================
- * CAMPOS DE `items`
- * ============================================================================
- *
- * Cada item representa um possível drop do baú.
- *
- * Exemplo:
- *
- * [
- *     'asset_category' => 'profile_bg',
- *     'asset_key' => 'ui_bg_profile_celestial',
- *     'display_tier' => 'epica',
- *     'drop_weight' => 1,
- *     'sort_order' => 0,
- * ]
- *
- *
- * ============================================================================
- * CAMPOS DOS ITENS
- * ============================================================================
- *
- * asset_category
- * Tipo do item.
- *
- * Exemplos:
- * - card
- * - card_back
- * - card_frame
- * - profile_bg
- *
- *
- * asset_key
- * Identificador único do asset.
- *
- * Exemplos:
- * - bruxa-cinzenta
- * - verso_infernais
- * - ui_bg_profile_celestial
- *
- * O frontend usa essa chave para localizar a imagem/recurso correto.
- *
- *
- * display_tier
- * Raridade visual do item.
- *
- * Valores aceitos:
- * - comum
- * - rara
- * - epica
- * - lendaria
- *
- *
- * drop_weight
- * Peso relativo no sorteio.
- *
- * Quanto maior o valor:
- * maior a chance do item aparecer.
- *
- * Exemplo:
- * item com peso 10 tem aproximadamente
- * 10x mais chance que item com peso 1.
- *
- *
- * sort_order
- * Ordem de exibição do item nas interfaces.
- *
- *
- * ============================================================================
- * asset_category ↔ pasta em `frontend/src/assets/imagens/`
- * ============================================================================
- *
- * No inventário (Vue), o preview resolve PNGs assim — exceto `card`, que só usa subpastas:
- *
- * | asset_category    | Pasta                 | asset_key / notas                              |
- * |-------------------|-----------------------|------------------------------------------------|
- * | card              | cards/{facção}/       | `cards.slug` (igual à BD); imagem via `imagem_path` na API |
- * | card_back         | frame_cards/          | nome do .png sem extensão                      |
- * | profile_bg        | backgrounds/          | idem                                           |
- * | avatar            | avatares/             | idem                                           |
- * | faction_icon      | icones_faccoes/       | idem                                           |
- * | attribute_icon    | icones_atributos/     | idem                                           |
- * | status_buff_icon  | icones_status_buffs/  | idem                                           |
- * | match_board       | tabuleiros/           | idem                                           |
- * | screen_general    | screans_gerais/       | idem (ortografia da pasta no repo)            |
- * | logo              | logos/                | idem                                           |
- * | chest_icon        | baus/                 | idem                                           |
- *
- * `card_frame`: reservado — quando houver pasta de molduras, mapear no frontend.
- *
- *
- * ============================================================================
- * IMPORTANTE
- * ============================================================================
- *
- * O método `run()` sempre sincroniza o banco com o catálogo atual.
- *
- * Isso significa:
- * - itens antigos do baú são removidos
- * - novos itens são recriados com base no array `items`
- *
- * Portanto:
- * o array do catálogo é a fonte principal de verdade do loot.
+ * Campos do baú: name, description (texto para o jogador), cost_moedas, cost_cristais,
+ * available_in_shop, active, sort_order, pity_epic_every (null = sem pity).
  */
 class ChestAndWeeklyPoolSeeder extends Seeder
 {
     /**
-     * Catálogo estático dos baús e respetivos itens. É o único sítio a editar para mudar loot.
-     *
      * @return array<string, array{chest: array<string, mixed>, items: list<array<string, mixed>>}>
      */
     private function catalogoBaús(): array
     {
-        $cristalCost = (int) config('game.chests.cristal_basico.cost_cristais', 0);
+        $pityVersos = max(0, (int) config('game.chests.pity_epic_every', 20));
         $premiumCost = (int) config('game.chests.premium_padrao.cost_moedas', 0);
-        $pityEvery = (int) config('game.chests.pity_epic_every', 20);
 
         return [
-            'bau_cosmetico_iniciante' => [
+            /*
+            |--------------------------------------------------------------------------
+            | Recompensa semanal (só resgate XP — não aparece na loja)
+            |--------------------------------------------------------------------------
+            */
+            'bau_recompensa_semanal' => [
                 'chest' => [
-                    'name' => 'Baú cosmético iniciante',
-                    'description' => 'Contém um dos versos básicos do jogo.',
+                    'name' => 'Baú de recompensa semanal',
+                    'description' => 'Recompensa pelo teu progresso na semana. Contém sorteio entre várias cartas da coleção base.',
                     'cost_moedas' => null,
                     'cost_cristais' => null,
                     'available_in_shop' => false,
@@ -190,27 +41,6 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                     'pity_epic_every' => null,
                 ],
                 'items' => [
-                    ['asset_category' => 'card_back', 'asset_key' => 'verso_comum', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 0],
-                    ['asset_category' => 'card_back', 'asset_key' => 'verso_padrao', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 1],
-                    ['asset_category' => 'card_back', 'asset_key' => 'verso_astra_veil', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 2],
-                    ['asset_category' => 'card_back', 'asset_key' => 'verso_infernais', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 3],
-                    ['asset_category' => 'card_back', 'asset_key' => 'verso_natureza', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 4],
-                ],
-            ],
-
-            'cristal_basico' => [
-                'chest' => [
-                    'name' => 'Baú de cristal',
-                    'description' => 'Pool fixo: 8 cartas comuns, 1 rara e 1 épica (slugs na BD).',
-                    'cost_moedas' => null,
-                    'cost_cristais' => $cristalCost ?: null,
-                    'available_in_shop' => false,
-                    'active' => true,
-                    'sort_order' => 10,
-                    'pity_epic_every' => null,
-                ],
-                'items' => [
-                    // 8 comuns
                     ['asset_category' => 'card', 'asset_key' => 'cao-vulcanico', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 0],
                     ['asset_category' => 'card', 'asset_key' => 'bruxa-cinzenta', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 1],
                     ['asset_category' => 'card', 'asset_key' => 'morcego-igneo', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 2],
@@ -219,91 +49,320 @@ class ChestAndWeeklyPoolSeeder extends Seeder
                     ['asset_category' => 'card', 'asset_key' => 'sapo-toxico', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 5],
                     ['asset_category' => 'card', 'asset_key' => 'drone-sentinela', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 6],
                     ['asset_category' => 'card', 'asset_key' => 'corvo-funerario', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 7],
-                    // 1 rara
                     ['asset_category' => 'card', 'asset_key' => 'carniceiro-de-brasas', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 8],
-                    // 1 épica
                     ['asset_category' => 'card', 'asset_key' => 'tita-magmatico', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 9],
                 ],
             ],
 
+            /*
+            |--------------------------------------------------------------------------
+            | Baú premium (loja — moedas): todas as categorias de loot, por raridade
+            | 1 × lendário + 2 × épico + 3 × raro + 4 × comum — por tipo: card, card_back, profile_bg, match_board
+            |--------------------------------------------------------------------------
+            */
             'premium_padrao' => [
                 'chest' => [
                     'name' => 'Baú premium',
-                    'description' => 'Edita o array items abaixo para mudar o loot.',
-                    'cost_moedas' => $premiumCost ?: null,
+                    'description' => 'Sorteio de alta qualidade: cartas, versos, fundos de perfil e tabuleiros, com todas as raridades representadas em cada tipo de recompensa.',
+                    'cost_moedas' => 3000,
                     'cost_cristais' => null,
-                    'available_in_shop' => false,
+                    'available_in_shop' => true,
                     'active' => true,
-                    'sort_order' => 11,
-                    'pity_epic_every' => $pityEvery > 0 ? $pityEvery : null,
+                    'sort_order' => 40,
+                    'pity_epic_every' => $pityVersos > 0 ? $pityVersos : null,
+                ],
+                'items' => $this->itensBauPremiumPadrao(),
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Baús de cartas por facção (loja — cristais)
+            |--------------------------------------------------------------------------
+            */
+            'bau_cartas_infernais' => [
+                'chest' => [
+                    'name' => 'Baú de cartas — Infernais',
+                    'description' => 'Uma carta aleatória entre as unidades da facção Infernais.',
+                    'cost_moedas' => null,
+                    'cost_cristais' => 950,
+                    'available_in_shop' => true,
+                    'active' => true,
+                    'sort_order' => 20,
+                    'pity_epic_every' => null,
                 ],
                 'items' => [
-                    // Exemplo: fundo ui_bg_profile_celestial.png → chave estável para o perfil
-                    [
-                        'asset_category' => 'card',
-                        // Obrigatório: mesmo `slug` que em `cards.slug` (ex.: hífens, não underscores).
-                        'asset_key' => 'cao-vulcanico',
-                        'display_tier' => 'epica',
-                        'drop_weight' => 1,
-                        'sort_order' => 0,
-                    ],
-                    [
-                        'asset_category' => 'card',
-                        // Obrigatório: mesmo `slug` que em `cards.slug` (ex.: hífens, não underscores).
-                        'asset_key' => 'bruxa-cinzenta',
-                        'display_tier' => 'epica',
-                        'drop_weight' => 1,
-                        'sort_order' => 1,
-                    ],
-                    [
-                        'asset_category' => 'card',
-                        // Obrigatório: mesmo `slug` que em `cards.slug` (ex.: hífens, não underscores).
-                        'asset_key' => 'tita-magmatico',
-                        'display_tier' => 'epica',
-                        'drop_weight' => 1,
-                        'sort_order' => 2,
-                    ],
-                    [
-                        'asset_category' => 'card',
-                        // Obrigatório: mesmo `slug` que em `cards.slug` (ex.: hífens, não underscores).
-                        'asset_key' => 'morcego-igneo',
-                        'display_tier' => 'epica',
-                        'drop_weight' => 1,
-                        'sort_order' => 3,
-                    ],
-                    [
-                        'asset_category' => 'card_back',
-                        // Nome do PNG em imagens/frame_cards/ sem extensão (ex.: verso_da_carta.png).
-                        'asset_key' => 'verso_da_carta',
-                        'display_tier' => 'epica',
-                        'drop_weight' => 1,
-                        'sort_order' => 4,
-                    ],
-                    [
-                        'asset_category' => 'profile_bg',
-                        'asset_key' => 'ui_bg_profile_infernal',
-                        'display_tier' => 'epica',
-                        'drop_weight' => 1,
-                        'sort_order' => 5,
-                    ],
-                    [
-                        'asset_category' => 'match_board',
-                        'asset_key' => 'tabuleiro_ferrox',
-                        'display_tier' => 'epica',
-                        'drop_weight' => 1,
-                        'sort_order' => 6,
-                    ],
+                    ['asset_category' => 'card', 'asset_key' => 'carniceiro-de-brasas', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 0],
+                    ['asset_category' => 'card', 'asset_key' => 'cao-vulcanico', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 1],
+                    ['asset_category' => 'card', 'asset_key' => 'bruxa-cinzenta', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 2],
+                    ['asset_category' => 'card', 'asset_key' => 'tita-magmatico', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 3],
+                    ['asset_category' => 'card', 'asset_key' => 'morcego-igneo', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 4],
+                    ['asset_category' => 'card', 'asset_key' => 'rei-das-correntes', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 5],
+                ],
+            ],
+            'bau_cartas_natureza' => [
+                'chest' => [
+                    'name' => 'Baú de cartas — Natureza',
+                    'description' => 'Uma carta aleatória entre as unidades da facção Natureza.',
+                    'cost_moedas' => null,
+                    'cost_cristais' => 950,
+                    'available_in_shop' => true,
+                    'active' => true,
+                    'sort_order' => 21,
+                    'pity_epic_every' => null,
+                ],
+                'items' => [
+                    ['asset_category' => 'card', 'asset_key' => 'guardiao-do-musgo', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 0],
+                    ['asset_category' => 'card', 'asset_key' => 'aranha-lunar', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 1],
+                    ['asset_category' => 'card', 'asset_key' => 'espirito-da-raiz', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 2],
+                    ['asset_category' => 'card', 'asset_key' => 'sapo-toxico', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 3],
+                    ['asset_category' => 'card', 'asset_key' => 'cervo-fantasma', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 4],
+                    ['asset_category' => 'card', 'asset_key' => 'hidra-do-pantano', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 5],
+                ],
+            ],
+            'bau_cartas_mecanicos' => [
+                'chest' => [
+                    'name' => 'Baú de cartas — Mecânicos',
+                    'description' => 'Uma carta aleatória entre as unidades da facção Mecânicos.',
+                    'cost_moedas' => null,
+                    'cost_cristais' => 950,
+                    'available_in_shop' => true,
+                    'active' => true,
+                    'sort_order' => 22,
+                    'pity_epic_every' => null,
+                ],
+                'items' => [
+                    ['asset_category' => 'card', 'asset_key' => 'drone-sentinela', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 0],
+                    ['asset_category' => 'card', 'asset_key' => 'executor-de-ferro', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 1],
+                    ['asset_category' => 'card', 'asset_key' => 'engenheira-tesla', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 2],
+                    ['asset_category' => 'card', 'asset_key' => 'aranha-de-sucata', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 3],
+                    ['asset_category' => 'card', 'asset_key' => 'tremor-mk-ii', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 4],
+                    ['asset_category' => 'card', 'asset_key' => 'nucleo-automato', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 5],
+                ],
+            ],
+            'bau_cartas_mortos_vivos' => [
+                'chest' => [
+                    'name' => 'Baú de cartas — Mortos-vivos',
+                    'description' => 'Uma carta aleatória entre as unidades da facção Mortos-vivos.',
+                    'cost_moedas' => null,
+                    'cost_cristais' => 950,
+                    'available_in_shop' => true,
+                    'active' => true,
+                    'sort_order' => 23,
+                    'pity_epic_every' => null,
+                ],
+                'items' => [
+                    ['asset_category' => 'card', 'asset_key' => 'cavaleiro-sem-face', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 0],
+                    ['asset_category' => 'card', 'asset_key' => 'costureira-macabra', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 1],
+                    ['asset_category' => 'card', 'asset_key' => 'corvo-funerario', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 2],
+                    ['asset_category' => 'card', 'asset_key' => 'monge-apodrecido', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 3],
+                    ['asset_category' => 'card', 'asset_key' => 'gigante-ossuario', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 4],
+                    ['asset_category' => 'card', 'asset_key' => 'crianca-do-veu', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 5],
+                ],
+            ],
+            'bau_cartas_celestiais' => [
+                'chest' => [
+                    'name' => 'Baú de cartas — Celestiais',
+                    'description' => 'Uma carta aleatória entre as unidades Celestiais (Vazio).',
+                    'cost_moedas' => null,
+                    'cost_cristais' => 950,
+                    'available_in_shop' => true,
+                    'active' => true,
+                    'sort_order' => 24,
+                    'pity_epic_every' => null,
+                ],
+                'items' => [
+                    ['asset_category' => 'card', 'asset_key' => 'oraculo-solar', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 0],
+                    ['asset_category' => 'card', 'asset_key' => 'aberracao-do-vazio', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 1],
+                    ['asset_category' => 'card', 'asset_key' => 'serafim-partido', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 2],
+                    ['asset_category' => 'card', 'asset_key' => 'eclipse-vivo', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 3],
+                    ['asset_category' => 'card', 'asset_key' => 'navegante-astral', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 4],
+                    ['asset_category' => 'card', 'asset_key' => 'devorador-de-estrelas', 'display_tier' => 'lendaria', 'drop_weight' => 1, 'sort_order' => 5],
+                ],
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Cosméticos: fundos de perfil (facção = comum; restantes = épico)
+            |--------------------------------------------------------------------------
+            */
+            'bau_cosmetico_fundos' => [
+                'chest' => [
+                    'name' => 'Baú de fundos de perfil',
+                    'description' => 'Destaca o teu perfil: fundos alinhados com cada facção ou visuais premium.',
+                    'cost_moedas' => null,
+                    'cost_cristais' => 1100,
+                    'available_in_shop' => true,
+                    'active' => true,
+                    'sort_order' => 30,
+                    'pity_epic_every' => null,
+                ],
+                'items' => [
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_infernal', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 0],
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_nature', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 1],
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_mechanics', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 2],
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_undead', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 3],
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_celestial', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 4],
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_crystal', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 10],
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_gold', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 11],
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_heaven', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 12],
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_jade', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 13],
+                    ['asset_category' => 'profile_bg', 'asset_key' => 'ui_bg_profile_obsidian', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 14],
+                ],
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Cosméticos: tabuleiros (estética de facção = comum; linha premium = épico)
+            |--------------------------------------------------------------------------
+            */
+            'bau_cosmetico_tabuleiros' => [
+                'chest' => [
+                    'name' => 'Baú de tabuleiros',
+                    'description' => 'Personaliza o campo de batalha com tabuleiros temáticos ou acabamentos premium.',
+                    'cost_moedas' => null,
+                    'cost_cristais' => 1100,
+                    'available_in_shop' => true,
+                    'active' => true,
+                    'sort_order' => 31,
+                    'pity_epic_every' => null,
+                ],
+                'items' => [
+                    ['asset_category' => 'match_board', 'asset_key' => 'tabuleiro_ferrox', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 0],
+                    ['asset_category' => 'match_board', 'asset_key' => 'tabuleiro_sylvaris', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 1],
+                    ['asset_category' => 'match_board', 'asset_key' => 'tabuleiro_nocthar', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 2],
+                    ['asset_category' => 'match_board', 'asset_key' => 'tabuleiro_vulkaris', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 3],
+                    ['asset_category' => 'match_board', 'asset_key' => 'tabuleiro_astra_veil', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 4],
+                    ['asset_category' => 'match_board', 'asset_key' => 'tabuleiro_premium_cristal', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 10],
+                    ['asset_category' => 'match_board', 'asset_key' => 'tabuleiro_premium_jade', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 11],
+                    ['asset_category' => 'match_board', 'asset_key' => 'tabuleiro_premium_obsidiana', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 12],
+                    ['asset_category' => 'match_board', 'asset_key' => 'tabuleiro_premium_ouro', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 13],
+                ],
+            ],
+
+            /*
+            |--------------------------------------------------------------------------
+            | Versos de carta (comum / épico / lendário) + pity épico+
+            |--------------------------------------------------------------------------
+            */
+            'bau_cosmetico_versos' => [
+                'chest' => [
+                    'name' => 'Baú de versos',
+                    'description' => 'Sorteia um verso para as tuas cartas na partida. Inclui linhas comuns, épicas e lendárias.',
+                    'cost_moedas' => null,
+                    'cost_cristais' => 1300,
+                    'available_in_shop' => true,
+                    'active' => true,
+                    'sort_order' => 32,
+                    'pity_epic_every' => $pityVersos > 0 ? $pityVersos : null,
+                ],
+                'items' => [
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_padrao', 'display_tier' => 'comum', 'drop_weight' => 8, 'sort_order' => 0],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_ferrox', 'display_tier' => 'comum', 'drop_weight' => 8, 'sort_order' => 1],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_sylvaris', 'display_tier' => 'comum', 'drop_weight' => 8, 'sort_order' => 2],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_premium_jade', 'display_tier' => 'comum', 'drop_weight' => 8, 'sort_order' => 3],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_premium_ouro', 'display_tier' => 'comum', 'drop_weight' => 8, 'sort_order' => 4],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_nocthar', 'display_tier' => 'epica', 'drop_weight' => 3, 'sort_order' => 20],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_vulkaris', 'display_tier' => 'epica', 'drop_weight' => 3, 'sort_order' => 21],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_premium_cristal', 'display_tier' => 'epica', 'drop_weight' => 3, 'sort_order' => 22],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_premium_obsidiana', 'display_tier' => 'epica', 'drop_weight' => 3, 'sort_order' => 23],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_astra_veil', 'display_tier' => 'lendaria', 'drop_weight' => 1, 'sort_order' => 40],
+                    ['asset_category' => 'card_back', 'asset_key' => 'verso_da_carta', 'display_tier' => 'lendaria', 'drop_weight' => 1, 'sort_order' => 41],
                 ],
             ],
         ];
     }
 
     /**
-     * Sincroniza `chests` e `chest_items` com o catálogo, depois configura o pool semanal padrão.
+     * Baú premium: em cada asset_category (card, card_back, profile_bg, match_board),
+     * exatamente 1 lendário, 2 épicos, 3 raros e 4 comuns no pool do sorteio.
+     * O display_tier alinha com a raridade de apresentação / pity (as cartas usam a raridade real na BD na abertura).
      *
-     * Importante: sempre que corres este seeder, o loot de cada baú é substituído pelo que está
-     * no array `items` (linhas antigas daquele baú em `chest_items` são apagadas antes de inserir).
+     * @return list<array{asset_category: string, asset_key: string, display_tier: string, drop_weight: int, sort_order: int}>
      */
+    private function itensBauPremiumPadrao(): array
+    {
+        $sort = 0;
+        $rows = [];
+        $row = function (
+            string $category,
+            string $key,
+            string $tier,
+            int $weight = 1,
+        ) use (&$rows, &$sort): void {
+            $rows[] = [
+                'asset_category' => $category,
+                'asset_key' => $key,
+                'display_tier' => $tier,
+                'drop_weight' => $weight,
+                'sort_order' => $sort++,
+            ];
+        };
+
+        // —— Cartas (raridades = tabela cards) ——
+        $row('card', 'devorador-de-estrelas', 'lendaria');
+        $row('card', 'tita-magmatico', 'epica');
+        $row('card', 'serafim-partido', 'epica');
+        $row('card', 'carniceiro-de-brasas', 'rara');
+        $row('card', 'rei-das-correntes', 'rara');
+        $row('card', 'hidra-do-pantano', 'rara');
+        $row('card', 'cao-vulcanico', 'comum');
+        $row('card', 'bruxa-cinzenta', 'comum');
+        $row('card', 'morcego-igneo', 'comum');
+        $row('card', 'drone-sentinela', 'comum');
+
+        // —— Versos (tiers para pity / UI; chaves = PNGs em frame_cards/) ——
+        $row('card_back', 'verso_da_carta', 'lendaria');
+        $row('card_back', 'verso_nocthar', 'epica');
+        $row('card_back', 'verso_vulkaris', 'epica');
+        $row('card_back', 'verso_premium_cristal', 'rara');
+        $row('card_back', 'verso_premium_obsidiana', 'rara');
+        $row('card_back', 'verso_comum', 'rara');
+        $row('card_back', 'verso_padrao', 'comum');
+        $row('card_back', 'verso_ferrox', 'comum');
+        $row('card_back', 'verso_sylvaris', 'comum');
+        $row('card_back', 'verso_premium_ouro', 'comum');
+
+        // —— Fundos de perfil ——
+        $row('profile_bg', 'ui_bg_profile_obsidian', 'lendaria');
+        $row('profile_bg', 'ui_bg_profile_heaven', 'epica');
+        $row('profile_bg', 'ui_bg_profile_jade', 'epica');
+        $row('profile_bg', 'ui_bg_profile_celestial', 'rara');
+        $row('profile_bg', 'ui_bg_profile_crystal', 'rara');
+        $row('profile_bg', 'ui_bg_profile_gold', 'rara');
+        $row('profile_bg', 'ui_bg_profile_infernal', 'comum');
+        $row('profile_bg', 'ui_bg_profile_nature', 'comum');
+        $row('profile_bg', 'ui_bg_profile_mechanics', 'comum');
+        $row('profile_bg', 'ui_bg_profile_undead', 'comum');
+
+        // —— Tabuleiros ——
+        $row('match_board', 'tabuleiro_astra_veil', 'lendaria');
+        $row('match_board', 'tabuleiro_premium_obsidiana', 'epica');
+        $row('match_board', 'tabuleiro_premium_ouro', 'epica');
+        $row('match_board', 'tabuleiro_premium_cristal', 'rara');
+        $row('match_board', 'tabuleiro_premium_jade', 'rara');
+        $row('match_board', 'tabuleiro_vulkaris', 'rara');
+        $row('match_board', 'tabuleiro_ferrox', 'comum');
+        $row('match_board', 'tabuleiro_sylvaris', 'comum');
+        $row('match_board', 'tabuleiro_nocthar', 'comum');
+        $row('match_board', 'tabuleiro_padrao_v2', 'comum');
+
+        return $rows;
+    }
+
+    private function retirarBaúsLegadosDaLoja(): void
+    {
+        $aviso = 'Conteúdo de campanhas antigas. Se tiveres unidades, podes abri-las no inventário.';
+
+        $slugs = ['cristal_basico', 'bau_cosmetico_iniciante'];
+
+        foreach ($slugs as $slug) {
+            Chest::query()->where('slug', $slug)->update([
+                'available_in_shop' => false,
+                'description' => $aviso,
+            ]);
+        }
+    }
+
     public function run(): void
     {
         $catalogo = $this->catalogoBaús();
@@ -311,10 +370,9 @@ class ChestAndWeeklyPoolSeeder extends Seeder
         foreach ($catalogo as $slug => $bloco) {
             $chest = Chest::query()->updateOrCreate(
                 ['slug' => $slug],
-                $bloco['chest']
+                array_merge($bloco['chest'], [])
             );
 
-            // Loot deste baú = apenas o que está em `items` agora (edição manual no catálogo).
             ChestItem::query()->where('chest_id', $chest->id)->delete();
 
             foreach ($bloco['items'] as $row) {
@@ -329,7 +387,8 @@ class ChestAndWeeklyPoolSeeder extends Seeder
             }
         }
 
-        // Pool da recompensa semanal: liga o baú iniciante uma única vez se faltar na tabela pivô.
+        $this->retirarBaúsLegadosDaLoja();
+
         $pool = WeeklyChestPool::query()->updateOrCreate(
             ['slug' => 'padrao'],
             [
@@ -338,9 +397,9 @@ class ChestAndWeeklyPoolSeeder extends Seeder
             ]
         );
 
-        $bauCosm = Chest::query()->where('slug', 'bau_cosmetico_iniciante')->first();
-        if ($bauCosm && ! $pool->chests()->whereKey($bauCosm->id)->exists()) {
-            $pool->chests()->attach($bauCosm->id, ['weight' => 100]);
+        $bauSemanal = Chest::query()->where('slug', 'bau_recompensa_semanal')->first();
+        if ($bauSemanal) {
+            $pool->chests()->sync([$bauSemanal->id => ['weight' => 100]]);
         }
     }
 }

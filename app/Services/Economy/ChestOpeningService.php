@@ -11,34 +11,51 @@ use InvalidArgumentException;
 class ChestOpeningService
 {
     /**
-     * Compra um baú na loja: debita moeda e coloca 1 unidade no inventário (player_chest_stacks).
-     * O conteúdo sorteado na abertura vem sempre de chest_items.
+     * Compra um baú na loja: debita moeda conforme colunas do baú e soma unidades no inventário.
      *
      * @return array{
-     *     mode: string,
-     *     chest: array{id: int, slug: string, name: string},
-     *     quantity: int,
-     *     cost_cristais?: int,
-     *     cost_moedas?: int,
+     *     mode: string,chest: array{id: int, slug: string, name: string},quantity: int,purchased: int,
+     *     cost_cristais?: int,cost_cristais_each?: int,cost_moedas?: int,cost_moedas_each?: int,
      *     balance: array{cristais: int, moedas: int}
      * }
      */
-    public function purchaseForInventory(User $user, string $kind, int $quantity = 1): array
+    public function purchaseForInventory(User $user, string $slug, int $quantity = 1): array
     {
         $qty = max(1, $quantity);
 
-        return match ($kind) {
-            'cristal_basico' => $this->purchaseCristalBasico($user, $qty),
-            'premium_padrao' => $this->purchasePremiumPadrao($user, $qty),
-            default => throw new InvalidArgumentException('Tipo de baú inválido.'),
-        };
+        $chest = Chest::query()
+            ->where('slug', $slug)
+            ->where('active', true)
+            ->where('available_in_shop', true)
+            ->first();
+
+        if (! $chest) {
+            throw new InvalidArgumentException('Este baú não está disponível na loja.');
+        }
+
+        $cristaisUnit = $chest->cost_cristais;
+        $moedasUnit = $chest->cost_moedas;
+
+        $hasCristais = $cristaisUnit !== null && (int) $cristaisUnit > 0;
+        $hasMoedas = $moedasUnit !== null && (int) $moedasUnit > 0;
+
+        if (! $hasCristais && ! $hasMoedas) {
+            throw new InvalidArgumentException('Este baú não tem preço para compra na loja.');
+        }
+        if ($hasCristais && $hasMoedas) {
+            throw new InvalidArgumentException('Configuração de preço inválida para este baú.');
+        }
+
+        if ($hasCristais) {
+            return $this->purchaseWithCristais($user, $chest, (int) $cristaisUnit, $qty);
+        }
+
+        return $this->purchaseWithMoedas($user, $chest, (int) $moedasUnit, $qty);
     }
 
     /** @return array<string, mixed> */
-    private function purchaseCristalBasico(User $user, int $qty): array
+    private function purchaseWithCristais(User $user, Chest $chest, int $costEach, int $qty): array
     {
-        $costEach = (int) config('game.chests.cristal_basico.cost_cristais');
-        $chest = $this->chestBySlugOrFail('cristal_basico');
         $totalCost = $costEach * $qty;
 
         return DB::transaction(function () use ($user, $totalCost, $costEach, $chest, $qty) {
@@ -71,10 +88,8 @@ class ChestOpeningService
     }
 
     /** @return array<string, mixed> */
-    private function purchasePremiumPadrao(User $user, int $qty): array
+    private function purchaseWithMoedas(User $user, Chest $chest, int $costEach, int $qty): array
     {
-        $costEach = (int) config('game.chests.premium_padrao.cost_moedas');
-        $chest = $this->chestBySlugOrFail('premium_padrao');
         $totalCost = $costEach * $qty;
 
         return DB::transaction(function () use ($user, $totalCost, $costEach, $chest, $qty) {
@@ -104,22 +119,6 @@ class ChestOpeningService
                 ],
             ];
         });
-    }
-
-    private function chestBySlugOrFail(string $slug): Chest
-    {
-        $chest = Chest::query()
-            ->where('slug', $slug)
-            ->where('active', true)
-            ->first();
-
-        if (! $chest) {
-            throw new InvalidArgumentException(
-                'Baú não encontrado na base de dados (slug: '.$slug.'). Corra migrações e o ChestAndWeeklyPoolSeeder.'
-            );
-        }
-
-        return $chest;
     }
 
     private function incrementStackLocked(int $userId, int $chestId, int $delta = 1): PlayerChestStack
