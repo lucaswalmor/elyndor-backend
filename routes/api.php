@@ -48,6 +48,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/matchmaking/join', [MatchmakingController::class, 'join']);
         Route::delete('/matchmaking/leave', [MatchmakingController::class, 'leave']);
         Route::get('/matchmaking/status', [MatchmakingController::class, 'status']);
+        Route::post('/matchmaking/matches/{match}/accept', [MatchmakingController::class, 'accept']);
+        Route::post('/matchmaking/matches/{match}/decline', [MatchmakingController::class, 'decline']);
 
         Route::get('/matches/{id}', [MatchController::class, 'show']);
         Route::post('/matches/{id}/action', [MatchController::class, 'action']);

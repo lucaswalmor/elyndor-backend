@@ -10,6 +10,14 @@ class MatchViewBuilder
 {
     public function forUser(GameMatch $match, User $user): array
     {
+        if ($match->status === \App\Enums\MatchStatus::Aguardando) {
+            return [
+                'id' => $match->id,
+                'status' => $match->status->value,
+                'aguardando_aceite' => true,
+            ];
+        }
+
         $estado = $match->estado;
 
         // Usa a coleção já carregada — sem disparar novas queries.

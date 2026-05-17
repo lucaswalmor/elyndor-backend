@@ -3,6 +3,7 @@
 namespace App\Services\Match;
 
 use App\Events\MatchFound;
+use App\Events\MatchOfferCancelled;
 use App\Events\MatchStarted;
 use App\Enums\MatchStatus;
 use App\Models\GameMatch;
@@ -13,6 +14,8 @@ use App\Services\AntiAbuse\AntiAbuseService;
 use App\Services\Deck\DeckService;
 use App\Services\Game\MatchInitializer;
 use App\Services\Ranked\RankedService;
+use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 class MatchmakingService
 {
@@ -39,6 +42,32 @@ class MatchmakingService
             }
         } elseif ($modo !== 'normal') {
             throw new InvalidArgumentException('Modo de partida inválido.');
+        }
+
+        $this->expireAnyStalePendingMatchForUser($user);
+
+        $existingInProgress = MatchPlayer::where('user_id', $user->id)
+            ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::EmAndamento->value))
+            ->latest()
+            ->first();
+
+        if ($existingInProgress) {
+            return ['status' => 'em_partida', 'match_id' => $existingInProgress->match_id];
+        }
+
+        $existingPending = MatchPlayer::query()
+            ->where('user_id', $user->id)
+            ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::Aguardando->value))
+            ->latest()
+            ->first();
+
+        if ($existingPending) {
+            $match = GameMatch::with('players.user')->findOrFail($existingPending->match_id);
+
+            return array_merge(
+                ['status' => 'partida_encontrada', 'match_id' => $match->id],
+                $this->matchAcceptMetaForUser($match, $user)
+            );
         }
 
         MatchmakingQueue::where('user_id', $user->id)->delete();
@@ -69,10 +98,12 @@ class MatchmakingService
         $paired = $modo === 'ranqueada' ? $this->tryPairRanked() : $this->tryPairNormal();
 
         if ($paired) {
-            return [
-                'status' => 'partida_encontrada',
-                'match_id' => $paired,
-            ];
+            $match = GameMatch::with('players.user')->findOrFail($paired);
+
+            return array_merge(
+                ['status' => 'partida_encontrada', 'match_id' => $paired],
+                $this->matchAcceptMetaForUser($match, $user)
+            );
         }
 
         return [
@@ -89,26 +120,44 @@ class MatchmakingService
 
     public function status(User $user): array
     {
+        $this->expireAnyStalePendingMatchForUser($user);
+
+        $inProgress = MatchPlayer::where('user_id', $user->id)
+            ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::EmAndamento->value))
+            ->latest()
+            ->first();
+
+        if ($inProgress) {
+            return ['status' => 'em_partida', 'match_id' => $inProgress->match_id];
+        }
+
+        $pending = MatchPlayer::query()
+            ->where('user_id', $user->id)
+            ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::Aguardando->value))
+            ->with(['match.players.user'])
+            ->latest()
+            ->first();
+
+        if ($pending && $pending->match) {
+            return array_merge(
+                ['status' => 'partida_encontrada', 'match_id' => $pending->match_id],
+                $this->matchAcceptMetaForUser($pending->match, $user)
+            );
+        }
+
         $entry = MatchmakingQueue::where('user_id', $user->id)->first();
         if (! $entry) {
-            $player = MatchPlayer::where('user_id', $user->id)
-                ->whereHas('match', fn ($q) => $q->whereIn('status', [
-                    MatchStatus::Aguardando->value,
-                    MatchStatus::EmAndamento->value,
-                ]))
-                ->latest()
-                ->first();
-
-            if ($player) {
-                return ['status' => 'partida_encontrada', 'match_id' => $player->match_id];
-            }
-
             return ['status' => 'fora_da_fila'];
         }
 
         $paired = $entry->modo === 'ranqueada' ? $this->tryPairRanked() : $this->tryPairNormal();
         if ($paired) {
-            return ['status' => 'partida_encontrada', 'match_id' => $paired];
+            $match = GameMatch::with('players.user')->findOrFail($paired);
+
+            return array_merge(
+                ['status' => 'partida_encontrada', 'match_id' => $paired],
+                $this->matchAcceptMetaForUser($match, $user)
+            );
         }
 
         return [
@@ -116,6 +165,85 @@ class MatchmakingService
             'tempo_na_fila_segundos' => now()->diffInSeconds($entry->entrou_na_fila_em),
             'modo' => $entry->modo,
         ];
+    }
+
+    public function acceptOffer(User $user, int $matchId): array
+    {
+        DB::transaction(function () use ($user, $matchId) {
+            $match = GameMatch::lockForUpdate()->find($matchId);
+            if (! $match) {
+                throw new InvalidArgumentException('Partida não encontrada.');
+            }
+
+            if ($match->status === MatchStatus::Aguardando
+                && $match->accept_deadline_at
+                && now()->gt($match->accept_deadline_at)) {
+                $this->cancelPendingMatchAsExpired($match);
+                throw new InvalidArgumentException('O tempo para aceitar esta partida expirou.');
+            }
+
+            if ($match->status !== MatchStatus::Aguardando) {
+                throw new InvalidArgumentException('Esta partida não está aguardando confirmação.');
+            }
+
+            $player = MatchPlayer::where('match_id', $match->id)->where('user_id', $user->id)->first();
+            if (! $player) {
+                throw new InvalidArgumentException('Você não participa desta partida.');
+            }
+
+            if (! $player->match_accepted_at) {
+                $player->update(['match_accepted_at' => now()]);
+            }
+
+            $players = MatchPlayer::where('match_id', $match->id)->get();
+            if ($players->count() === 2 && $players->every(fn ($p) => $p->match_accepted_at !== null)) {
+                $p1 = $players->firstWhere('player_slot', 1);
+                $p2 = $players->firstWhere('player_slot', 2);
+                $this->initializer->start($match, $p1, $p2);
+                $match->refresh();
+                $userA = User::find($p1->user_id);
+                $userB = User::find($p2->user_id);
+                broadcast(new MatchStarted($match, $userA, 1));
+                broadcast(new MatchStarted($match, $userB, 2));
+            }
+        });
+
+        return ['ok' => true];
+    }
+
+    public function declineOffer(User $user, int $matchId): array
+    {
+        DB::transaction(function () use ($user, $matchId) {
+            $match = GameMatch::lockForUpdate()->find($matchId);
+            if (! $match) {
+                throw new InvalidArgumentException('Partida não encontrada.');
+            }
+
+            if ($match->status === MatchStatus::Aguardando
+                && $match->accept_deadline_at
+                && now()->gt($match->accept_deadline_at)) {
+                $this->cancelPendingMatchAsExpired($match);
+
+                return;
+            }
+
+            if ($match->status !== MatchStatus::Aguardando) {
+                return;
+            }
+
+            $player = MatchPlayer::where('match_id', $match->id)->where('user_id', $user->id)->first();
+            if (! $player) {
+                throw new InvalidArgumentException('Você não participa desta partida.');
+            }
+
+            if ($player->match_accepted_at) {
+                throw new InvalidArgumentException('Você já confirmou esta partida.');
+            }
+
+            $this->cancelPendingMatchDeclined($match, $user->id);
+        });
+
+        return ['ok' => true];
     }
 
     public function tryPairNormal(): ?int
@@ -188,36 +316,105 @@ class MatchmakingService
 
             MatchmakingQueue::whereIn('user_id', [$freshA->user_id, $freshB->user_id])->delete();
 
+            $seconds = (int) config('game.match.accept_offer_seconds', 45);
+
             $match = GameMatch::create([
                 'modo' => $modo,
                 'status' => MatchStatus::Aguardando,
+                'accept_deadline_at' => now()->addSeconds($seconds),
             ]);
 
-            $p1 = MatchPlayer::create([
+            MatchPlayer::create([
                 'match_id' => $match->id,
                 'user_id' => $freshA->user_id,
                 'deck_id' => $freshA->deck_id,
                 'player_slot' => 1,
             ]);
-            $p2 = MatchPlayer::create([
+            MatchPlayer::create([
                 'match_id' => $match->id,
                 'user_id' => $freshB->user_id,
                 'deck_id' => $freshB->deck_id,
                 'player_slot' => 2,
             ]);
 
-            $this->initializer->start($match, $p1, $p2);
-            $match->refresh();
+            $match->load('players.user');
+            $userA = $match->players->firstWhere('player_slot', 1)?->user;
+            $userB = $match->players->firstWhere('player_slot', 2)?->user;
 
-            $userA = User::find($freshA->user_id);
-            $userB = User::find($freshB->user_id);
-
-            broadcast(new MatchFound($match, $userB, $userA));
-            broadcast(new MatchFound($match, $userA, $userB));
-            broadcast(new MatchStarted($match, $userA, 1));
-            broadcast(new MatchStarted($match, $userB, 2));
+            if ($userA && $userB) {
+                broadcast(new MatchFound($match->fresh(), $userB, $userA));
+                broadcast(new MatchFound($match->fresh(), $userA, $userB));
+            }
 
             return $match->id;
         });
+    }
+
+    private function matchAcceptMetaForUser(GameMatch $match, User $viewer): array
+    {
+        $match->loadMissing('players.user');
+        $oppPlayer = $match->players->first(fn ($p) => $p->user_id !== $viewer->id);
+        $opp = $oppPlayer?->user;
+        $pts = (int) ($opp?->ranked_points ?? 0);
+
+        return [
+            'accept_deadline_at' => $match->accept_deadline_at?->toIso8601String(),
+            'oponente' => [
+                'nome' => $opp?->nickname ?? 'Oponente',
+                'divisao' => $opp ? $this->ranked->divisionKeyForPoints($pts) : 'ferro',
+                'pontos' => $pts,
+            ],
+            'segundos_para_aceitar' => max(
+                0,
+                ($match->accept_deadline_at?->getTimestamp() ?? 0) - now()->getTimestamp()
+            ),
+        ];
+    }
+
+    private function expireAnyStalePendingMatchForUser(User $user): void
+    {
+        $rows = MatchPlayer::query()
+            ->where('user_id', $user->id)
+            ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::Aguardando->value))
+            ->get();
+
+        foreach ($rows as $row) {
+            DB::transaction(function () use ($row) {
+                $match = GameMatch::lockForUpdate()->find($row->match_id);
+                if (! $match || $match->status !== MatchStatus::Aguardando) {
+                    return;
+                }
+                if (! $match->accept_deadline_at || now()->lte($match->accept_deadline_at)) {
+                    return;
+                }
+                $this->cancelPendingMatchAsExpired($match);
+            });
+        }
+    }
+
+    private function cancelPendingMatchAsExpired(GameMatch $match): void
+    {
+        $match->update(['status' => MatchStatus::Cancelada]);
+        $uids = MatchPlayer::where('match_id', $match->id)->pluck('user_id');
+        foreach ($uids as $uid) {
+            $recipient = User::find($uid);
+            if ($recipient) {
+                broadcast(new MatchOfferCancelled($match->fresh(), $recipient, 'expired'));
+            }
+        }
+    }
+
+    private function cancelPendingMatchDeclined(GameMatch $match, int $declinerUserId): void
+    {
+        $match->update(['status' => MatchStatus::Cancelada]);
+        $players = MatchPlayer::where('match_id', $match->id)->get();
+        foreach ($players as $pl) {
+            $recipient = User::find($pl->user_id);
+            if (! $recipient) {
+                continue;
+            }
+            $reason = $pl->user_id === $declinerUserId ? 'you_declined' : 'opponent_declined';
+            broadcast(new MatchOfferCancelled($match->fresh(), $recipient, $reason));
+        }
     }
 }

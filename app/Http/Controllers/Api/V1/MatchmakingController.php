@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\GameMatch;
 use App\Services\Match\MatchmakingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,5 +51,23 @@ class MatchmakingController extends Controller
     public function status(Request $request): JsonResponse
     {
         return response()->json($this->matchmaking->status($request->user()));
+    }
+
+    public function accept(Request $request, GameMatch $match): JsonResponse
+    {
+        try {
+            return response()->json($this->matchmaking->acceptOffer($request->user(), $match->id));
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
+    }
+
+    public function decline(Request $request, GameMatch $match): JsonResponse
+    {
+        try {
+            return response()->json($this->matchmaking->declineOffer($request->user(), $match->id));
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
     }
 }
