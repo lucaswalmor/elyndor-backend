@@ -14,6 +14,7 @@ use App\Services\AntiAbuse\AntiAbuseService;
 use App\Services\Deck\DeckService;
 use App\Services\Game\MatchInitializer;
 use App\Services\Ranked\RankedService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -195,11 +196,14 @@ class MatchmakingService
                 $player->update(['match_accepted_at' => now()]);
             }
 
-            $players = MatchPlayer::where('match_id', $match->id)->get();
+            $players = MatchPlayer::where('match_id', $match->id)->with('user')->get();
             if ($players->count() === 2 && $players->every(fn ($p) => $p->match_accepted_at !== null)) {
                 $p1 = $players->firstWhere('player_slot', 1);
                 $p2 = $players->firstWhere('player_slot', 2);
-                $this->initializer->start($match, $p1, $p2);
+                $arenaSlug = $this->resolveArenaMatchBoardSlugFromFirstAccepter($players);
+                $match->arena_match_board_slug = $arenaSlug;
+                $match->save();
+                $this->initializer->start($match->fresh(['players.user']), $p1, $p2);
                 $match->refresh();
                 $userA = User::find($p1->user_id);
                 $userB = User::find($p2->user_id);
@@ -402,6 +406,32 @@ class MatchmakingService
                 broadcast(new MatchOfferCancelled($match->fresh(), $recipient, 'expired'));
             }
         }
+    }
+
+    /**
+     * Tabuleiro de arena partilhado: usa o cosmético equipado de quem aceitou primeiro.
+     * Empate microscópico no mesmo instante → desempata por player_slot menor (prioridade jogador 1).
+     *
+     * @param  EloquentCollection<int, MatchPlayer>  $players
+     */
+    private function resolveArenaMatchBoardSlugFromFirstAccepter(EloquentCollection $players): string
+    {
+        /** @var MatchPlayer|null $first */
+        $first = $players
+            ->sortBy(function ($p) {
+                $t = $p->match_accepted_at;
+                $ts = $t ? $t->format('Y-m-d H:i:s.u') : '0000-00-00 00:00:00.000000';
+
+                return $ts.'_'.str_pad((string) $p->player_slot, 2, '0', STR_PAD_LEFT);
+            })
+            ->first();
+
+        $slug = trim((string) ($first?->user?->match_board_slug ?? ''));
+        if ($slug === '') {
+            $slug = 'padrao';
+        }
+
+        return $slug;
     }
 
     private function cancelPendingMatchDeclined(GameMatch $match, int $declinerUserId): void

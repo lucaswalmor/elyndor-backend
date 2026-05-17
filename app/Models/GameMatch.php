@@ -12,7 +12,7 @@ class GameMatch extends Model
     protected $table = 'matches';
 
     protected $fillable = [
-        'modo', 'status', 'accept_deadline_at', 'vencedor_id', 'turno', 'jogador_da_vez', 'estado',
+        'modo', 'status', 'accept_deadline_at', 'arena_match_board_slug', 'vencedor_id', 'turno', 'jogador_da_vez', 'estado',
         'turno_deadline_em', 'iniciada_em', 'finalizada_em',
     ];
 
