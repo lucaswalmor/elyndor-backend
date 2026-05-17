@@ -36,6 +36,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/shop/buy', [ShopController::class, 'buy']);
         Route::get('/economy/chest/prices', [EconomyController::class, 'chestPrices']);
         Route::post('/economy/chest/open', [EconomyController::class, 'chestOpen']);
+        Route::get('/economy/chest/purchases', [EconomyController::class, 'chestPurchaseHistory']);
         Route::get('/inventory/chests', [InventoryController::class, 'chestStacks']);
         Route::post('/inventory/chests/open', [InventoryController::class, 'openCosmeticChest']);
         Route::get('/inventory/chests/{slug}/preview', [InventoryController::class, 'chestPreview']);

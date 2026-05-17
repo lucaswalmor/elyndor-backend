@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Chest;
+use App\Models\ChestShopPurchase;
 use App\Services\Economy\ChestOpeningService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -60,6 +61,34 @@ class EconomyController extends Controller
                 'pity_epic_every' => $c->pity_epic_every,
             ])->values()->all(),
             'pity_epic_every' => (int) config('game.chests.pity_epic_every'),
+        ]);
+    }
+
+    public function chestPurchaseHistory(Request $request): JsonResponse
+    {
+        $page = ChestShopPurchase::query()
+            ->where('user_id', $request->user()->id)
+            ->with('chest:id,slug,name')
+            ->orderByDesc('id')
+            ->paginate(30);
+
+        return response()->json([
+            'data' => collect($page->items())->map(fn (ChestShopPurchase $p) => [
+                'id' => $p->id,
+                'chest_slug' => $p->chest?->slug,
+                'chest_name' => $p->chest?->name,
+                'quantity' => $p->quantity,
+                'currency' => $p->currency,
+                'unit_price' => $p->unit_price,
+                'total_paid' => $p->total_paid,
+                'created_at' => $p->created_at?->toIso8601String(),
+            ])->values()->all(),
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
         ]);
     }
 }

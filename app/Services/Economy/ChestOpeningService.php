@@ -3,6 +3,7 @@
 namespace App\Services\Economy;
 
 use App\Models\Chest;
+use App\Models\ChestShopPurchase;
 use App\Models\PlayerChestStack;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +69,15 @@ class ChestOpeningService
 
             $stack = $this->incrementStackLocked((int) $user->id, (int) $chest->id, $qty);
 
+            ChestShopPurchase::query()->create([
+                'user_id' => $user->id,
+                'chest_id' => $chest->id,
+                'quantity' => $qty,
+                'currency' => 'cristais',
+                'unit_price' => $costEach,
+                'total_paid' => $totalCost,
+            ]);
+
             return [
                 'mode' => 'inventory',
                 'chest' => [
@@ -101,6 +111,15 @@ class ChestOpeningService
             $u->save();
 
             $stack = $this->incrementStackLocked((int) $user->id, (int) $chest->id, $qty);
+
+            ChestShopPurchase::query()->create([
+                'user_id' => $user->id,
+                'chest_id' => $chest->id,
+                'quantity' => $qty,
+                'currency' => 'moedas',
+                'unit_price' => $costEach,
+                'total_paid' => $totalCost,
+            ]);
 
             return [
                 'mode' => 'inventory',
