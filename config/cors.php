@@ -10,9 +10,14 @@ return [
         'http://localhost:8080',
         'http://localhost:3000',
         'http://192.168.100.223:8081',
+        'https://elyndor-six.vercel.app',
+        'https://tauri.localhost',
+        'http://tauri.localhost',
     ],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https://[\w-]+\.vercel\.app$#',
+    ],
 
     'allowed_headers' => ['*'],
 
