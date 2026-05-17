@@ -2,7 +2,7 @@
 
 /**
  * Pesos e regras de baús — v1.0
- * Alterar aqui sem mexer no ChestOpeningService.
+ * Pesos por raridade usados pelo ChestAndWeeklyPoolSeeder ao gerar linhas em chest_items para o baú premium.
  */
 return [
     'roulette_display' => [

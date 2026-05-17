@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\MatchmakingController;
 use App\Http\Controllers\Api\V1\WeeklyController;
 use App\Http\Controllers\Api\V1\ShopController;
 use App\Http\Controllers\Api\V1\EconomyController;
+use App\Http\Controllers\Api\V1\InventoryController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -34,6 +35,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/shop/buy', [ShopController::class, 'buy']);
         Route::get('/economy/chest/prices', [EconomyController::class, 'chestPrices']);
         Route::post('/economy/chest/open', [EconomyController::class, 'chestOpen']);
+        Route::get('/inventory/chests', [InventoryController::class, 'chestStacks']);
+        Route::post('/inventory/chests/open', [InventoryController::class, 'openCosmeticChest']);
+        Route::get('/inventory/chests/{slug}/preview', [InventoryController::class, 'chestPreview']);
         Route::get('/decks', [DeckController::class, 'index']);
         Route::post('/decks', [DeckController::class, 'store']);
         Route::put('/decks/{id}', [DeckController::class, 'update']);

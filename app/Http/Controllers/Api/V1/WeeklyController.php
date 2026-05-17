@@ -21,15 +21,8 @@ class WeeklyController extends Controller
 
     public function claim(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'indices' => ['required', 'array'],
-            'indices.*' => ['integer', 'min:0', 'max:3'],
-        ]);
-
         try {
-            $results = $this->weekly->claim($request->user(), $data['indices']);
-
-            return response()->json(['results' => $results]);
+            return response()->json($this->weekly->claim($request->user()));
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

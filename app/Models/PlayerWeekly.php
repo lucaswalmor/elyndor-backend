@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PlayerWeekly extends Model
 {
     protected $fillable = [
-        'user_id', 'week_start', 'xp_earned', 'claimed_at', 'offers',
+        'user_id', 'week_start', 'xp_earned', 'claimed_at', 'offers', 'granted_chest_id',
     ];
 
     protected function casts(): array
@@ -23,5 +23,10 @@ class PlayerWeekly extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function grantedChest(): BelongsTo
+    {
+        return $this->belongsTo(Chest::class, 'granted_chest_id');
     }
 }

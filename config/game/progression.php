@@ -29,6 +29,8 @@ return [
         'max_legendary_in_offers' => 1,
         /** Dev: permite resgate semanal em qualquer dia */
         'claim_any_time' => env('WEEKLY_CLAIM_ANY_TIME', false),
+        /** Slug da tabela weekly_chest_pools ao entregar um baú no resgate */
+        'chest_pool_slug' => env('WEEKLY_CHEST_POOL_SLUG', 'padrao'),
     ],
 
     /** Ao ganhar carta acima do limite de cópias (mesmo limite do deck). */

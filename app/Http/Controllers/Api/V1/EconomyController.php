@@ -22,7 +22,7 @@ class EconomyController extends Controller
         ]);
 
         try {
-            return response()->json($this->chests->open($request->user(), $data['type']));
+            return response()->json($this->chests->purchaseForInventory($request->user(), $data['type']));
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

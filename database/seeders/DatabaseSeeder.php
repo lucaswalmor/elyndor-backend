@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CardSeeder::class,
             AvatarSeeder::class,
+            ChestAndWeeklyPoolSeeder::class,
         ]);
     }
 }
