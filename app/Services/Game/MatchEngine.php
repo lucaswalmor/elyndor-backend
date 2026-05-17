@@ -65,8 +65,9 @@ class MatchEngine
         if (! $finished) {
             // Broadcast via defer() — executa APÓS a resposta HTTP ser enviada.
             $matchObj = $match;
-            defer(function () use ($matchObj, $acao, $slot, $animacoes) {
-                broadcast(new ActionProcessed($matchObj, $acao, $slot, $animacoes))->toOthers();
+            $broadcastPayload = $this->broadcastPayloadSnapshot($acao, $payload);
+            defer(function () use ($matchObj, $acao, $slot, $animacoes, $broadcastPayload) {
+                broadcast(new ActionProcessed($matchObj, $acao, $slot, $animacoes, $broadcastPayload))->toOthers();
             });
         }
 
@@ -76,6 +77,25 @@ class MatchEngine
             'animacoes'        => $animacoes,
             'finalizada'       => $finished,
         ];
+    }
+
+    /**
+     * Dados mínimos da ação para o oponente repetir animações via WebSocket (sem expor o body completo).
+     *
+     * @return array<string, string>
+     */
+    private function broadcastPayloadSnapshot(string $acao, array $payload): array
+    {
+        return match ($acao) {
+            'atacar_unidade' => [
+                'instancia_id' => (string) ($payload['instancia_id'] ?? ''),
+                'alvo_instancia_id' => (string) ($payload['alvo_instancia_id'] ?? ''),
+            ],
+            'atacar_jogador' => [
+                'instancia_id' => (string) ($payload['instancia_id'] ?? ''),
+            ],
+            default => [],
+        };
     }
 
     public function refreshTurnDeadline(GameMatch $match): void

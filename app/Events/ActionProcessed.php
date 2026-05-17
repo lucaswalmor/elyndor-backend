@@ -3,7 +3,6 @@
 namespace App\Events;
 
 use App\Models\GameMatch;
-use App\Services\Game\MatchViewBuilder;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -19,6 +18,7 @@ class ActionProcessed implements ShouldBroadcast
         public string $acao,
         public int $playerSlot,
         public array $animacoes,
+        public array $actionPayload = [],
     ) {}
 
     public function broadcastOn(): array
@@ -38,6 +38,7 @@ class ActionProcessed implements ShouldBroadcast
             'player_id' => $this->playerSlot,
             'animacoes' => $this->animacoes,
             'estado_atualizado' => $this->match->estado,
+            'action_payload' => $this->actionPayload,
         ];
     }
 }
