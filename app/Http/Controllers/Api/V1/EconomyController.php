@@ -19,10 +19,16 @@ class EconomyController extends Controller
     {
         $data = $request->validate([
             'type' => ['required', 'string', Rule::in(['cristal_basico', 'premium_padrao'])],
+            'quantity' => ['sometimes', 'integer', 'min:1', 'max:999999'],
         ]);
 
+        $qty = (int) ($data['quantity'] ?? 1);
+        if ($qty < 1) {
+            $qty = 1;
+        }
+
         try {
-            return response()->json($this->chests->purchaseForInventory($request->user(), $data['type']));
+            return response()->json($this->chests->purchaseForInventory($request->user(), $data['type'], $qty));
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
