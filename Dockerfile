@@ -79,7 +79,7 @@ RUN printf 'server {\n\
 }' > /etc/nginx/http.d/default.conf
 
 # Configurar Supervisor para gerenciar todos os processos
-RUN printf '[supervisord]\n\
+RUN mkdir -p /etc/supervisor/conf.d && printf '[supervisord]\n\
 nodaemon=true\n\
 logfile=/var/log/supervisord.log\n\
 \n\
