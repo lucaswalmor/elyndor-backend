@@ -8,4 +8,5 @@ enum MatchStatus: string
     case EmAndamento = 'em_andamento';
     case Finalizada = 'finalizada';
     case Abandonada = 'abandonada';
+    case Cancelada = 'cancelada';
 }

@@ -8,13 +8,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MatchPlayer extends Model
 {
     protected $fillable = [
-        'match_id', 'user_id', 'deck_id', 'player_slot', 'vida_inicial', 'vida_final',
+        'match_id', 'user_id', 'deck_id', 'player_slot', 'match_accepted_at', 'vida_inicial', 'vida_final',
         'is_bot', 'conectado', 'desconectado_em', 'reconectado_em',
     ];
 
     protected function casts(): array
     {
         return [
+            'match_accepted_at' => 'datetime',
             'is_bot' => 'boolean',
             'conectado' => 'boolean',
             'desconectado_em' => 'datetime',

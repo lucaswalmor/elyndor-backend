@@ -5,6 +5,9 @@
  * Timer: decisão de produto (20 + 5n, cap 90).
  */
 return [
+    /** Segundos para ambos aceitarem o pareamento antes da oferta expirar. */
+    'accept_offer_seconds' => (int) env('MATCH_ACCEPT_OFFER_SECONDS', 45),
+
     'turn_timer' => [
         'base_seconds' => 20,
         'increment_per_turn' => 5,

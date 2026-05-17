@@ -12,7 +12,7 @@ class GameMatch extends Model
     protected $table = 'matches';
 
     protected $fillable = [
-        'modo', 'status', 'vencedor_id', 'turno', 'jogador_da_vez', 'estado',
+        'modo', 'status', 'accept_deadline_at', 'vencedor_id', 'turno', 'jogador_da_vez', 'estado',
         'turno_deadline_em', 'iniciada_em', 'finalizada_em',
     ];
 
@@ -21,6 +21,7 @@ class GameMatch extends Model
         return [
             'estado' => 'array',
             'status' => MatchStatus::class,
+            'accept_deadline_at' => 'datetime',
             'turno_deadline_em' => 'datetime',
             'iniciada_em' => 'datetime',
             'finalizada_em' => 'datetime',
