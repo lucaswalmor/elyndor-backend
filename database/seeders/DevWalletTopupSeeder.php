@@ -24,12 +24,6 @@ class DevWalletTopupSeeder extends Seeder
 
     public function run(): void
     {
-        if (app()->environment('production')) {
-            $this->command?->error('DevWalletTopupSeeder: ignorado em produção.');
-
-            return;
-        }
-
         $ids = $this->parseUserIds(env('DEV_TOPUP_USER_IDS', '1,2'));
         if ($ids === []) {
             $this->command?->warn('Nenhum ID válido em DEV_TOPUP_USER_IDS.');
