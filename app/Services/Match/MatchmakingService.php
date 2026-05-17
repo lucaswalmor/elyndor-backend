@@ -2,15 +2,16 @@
 
 namespace App\Services\Match;
 
+use App\Enums\MatchStatus;
 use App\Events\MatchFound;
 use App\Events\MatchOfferCancelled;
 use App\Events\MatchStarted;
-use App\Enums\MatchStatus;
 use App\Models\GameMatch;
 use App\Models\MatchmakingQueue;
 use App\Models\MatchPlayer;
 use App\Models\User;
 use App\Services\AntiAbuse\AntiAbuseService;
+use App\Services\Bot\RankedSubstitutePairingService;
 use App\Services\Deck\DeckService;
 use App\Services\Game\MatchInitializer;
 use App\Services\Ranked\RankedService;
@@ -25,6 +26,7 @@ class MatchmakingService
         private DeckService $deckService,
         private RankedService $ranked,
         private AntiAbuseService $antiAbuse,
+        private RankedSubstitutePairingService $rankedSubstitutes,
     ) {}
 
     /**
@@ -96,7 +98,9 @@ class MatchmakingService
 
         MatchmakingQueue::create($row);
 
-        $paired = $modo === 'ranqueada' ? $this->tryPairRanked() : $this->tryPairNormal();
+        $paired = $modo === 'ranqueada'
+            ? ($this->tryPairRanked() ?: $this->rankedSubstitutes->maybePairStaleSoloHumans())
+            : $this->tryPairNormal();
 
         if ($paired) {
             $match = GameMatch::with('players.user')->findOrFail($paired);
@@ -151,7 +155,9 @@ class MatchmakingService
             return ['status' => 'fora_da_fila'];
         }
 
-        $paired = $entry->modo === 'ranqueada' ? $this->tryPairRanked() : $this->tryPairNormal();
+        $paired = $entry->modo === 'ranqueada'
+            ? ($this->tryPairRanked() ?: $this->rankedSubstitutes->maybePairStaleSoloHumans())
+            : $this->tryPairNormal();
         if ($paired) {
             $match = GameMatch::with('players.user')->findOrFail($paired);
 

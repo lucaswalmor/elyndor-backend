@@ -64,6 +64,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'last_daily_win_bonus_date' => 'date',
             'match_mode_counts' => 'array',
+            'is_bot' => 'boolean',
         ];
     }
 }

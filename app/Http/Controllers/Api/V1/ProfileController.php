@@ -35,6 +35,7 @@ class ProfileController extends Controller
     {
         $limit = min(100, max(1, (int) $request->query('limit', 20)));
         $users = User::query()
+            ->where('is_bot', false)
             ->with(['playerLevel', 'avatar'])
             ->orderByDesc('ranked_points')
             ->limit($limit)

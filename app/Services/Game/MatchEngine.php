@@ -9,6 +9,8 @@ use App\Events\TurnChanged;
 use App\Models\GameMatch;
 use App\Models\MatchLog;
 use App\Models\User;
+use App\Services\Bot\RankedBotTurnDispatcher;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -43,12 +45,12 @@ class MatchEngine
         $acao = $payload['acao'] ?? '';
 
         match ($acao) {
-            'invocar'         => $this->invoke($estado, $slot, $payload, $animacoes),
-            'atacar_unidade'  => $this->attackUnit($estado, $slot, $payload, $animacoes),
-            'atacar_jogador'  => $this->attackPlayer($estado, $slot, $payload, $animacoes),
-            'habilidade'      => $this->activeAbility($estado, $slot, $payload, $animacoes),
+            'invocar' => $this->invoke($estado, $slot, $payload, $animacoes),
+            'atacar_unidade' => $this->attackUnit($estado, $slot, $payload, $animacoes),
+            'atacar_jogador' => $this->attackPlayer($estado, $slot, $payload, $animacoes),
+            'habilidade' => $this->activeAbility($estado, $slot, $payload, $animacoes),
             'finalizar_turno' => $this->endTurn($match, $estado, $slot, $animacoes),
-            default           => throw new InvalidArgumentException('Ação inválida'),
+            default => throw new InvalidArgumentException('Ação inválida'),
         };
 
         // endTurn já atribui $match->estado internamente; para outros casos atribuímos aqui.
@@ -72,10 +74,10 @@ class MatchEngine
         }
 
         return [
-            'sucesso'          => true,
-            'estado_atualizado'=> $estado,
-            'animacoes'        => $animacoes,
-            'finalizada'       => $finished,
+            'sucesso' => true,
+            'estado_atualizado' => $estado,
+            'animacoes' => $animacoes,
+            'finalizada' => $finished,
         ];
     }
 
@@ -135,9 +137,9 @@ class MatchEngine
             $this->syncUnit($estado, $slot, $unit);
             $animacoes[] = ['tipo' => 'escudo_quebrado', 'instancia_id' => $id];
 
-            \Illuminate\Support\Facades\Log::info('[damageUnit] escudo absorveu ataque', [
+            Log::info('[damageUnit] escudo absorveu ataque', [
                 'instancia_id' => $id,
-                'card_id'      => $unit['card_id'],
+                'card_id' => $unit['card_id'],
             ]);
 
             return;
@@ -156,10 +158,10 @@ class MatchEngine
         $unit['vida_atual'] -= $dmg;
         $animacoes[] = ['tipo' => 'dano', 'instancia_id' => $id, 'valor' => $dmg];
 
-        \Illuminate\Support\Facades\Log::info('[damageUnit] dano aplicado', [
+        Log::info('[damageUnit] dano aplicado', [
             'instancia_id' => $id,
-            'card_id'      => $unit['card_id'],
-            'dmg'          => $dmg,
+            'card_id' => $unit['card_id'],
+            'dmg' => $dmg,
             'vida_restante' => $unit['vida_atual'],
         ]);
 
@@ -179,10 +181,10 @@ class MatchEngine
             return;
         }
 
-        \Illuminate\Support\Facades\Log::info('[killUnit] unidade eliminada', [
+        Log::info('[killUnit] unidade eliminada', [
             'instancia_id' => $instanciaId,
-            'card_id'      => $unit['card_id'],
-            'slot'         => $slot,
+            'card_id' => $unit['card_id'],
+            'slot' => $slot,
         ]);
 
         $this->effects->triggerSkills($estado, $slot, 'ao_morrer', $unit, $animacoes);
@@ -349,15 +351,15 @@ class MatchEngine
             throw new InvalidArgumentException('Deve atacar a unidade com provocação primeiro');
         }
 
-        \Illuminate\Support\Facades\Log::info('[attackUnit] início do ataque', [
-            'atacante'  => ['id' => $attacker['instancia_id'], 'card' => $attacker['card_id'], 'atk' => $attacker['ataque'] ?? '?', 'vida' => $attacker['vida_atual']],
-            'defensor'  => ['id' => $defender['instancia_id'], 'card' => $defender['card_id'], 'vida' => $defender['vida_atual'], 'flags' => $defender['flags'] ?? []],
+        Log::info('[attackUnit] início do ataque', [
+            'atacante' => ['id' => $attacker['instancia_id'], 'card' => $attacker['card_id'], 'atk' => $attacker['ataque'] ?? '?', 'vida' => $attacker['vida_atual']],
+            'defensor' => ['id' => $defender['instancia_id'], 'card' => $defender['card_id'], 'vida' => $defender['vida_atual'], 'flags' => $defender['flags'] ?? []],
         ]);
 
         $this->unitAttack($estado, $slot, $attacker, $opp, $defender, $animacoes);
         $this->syncUnit($estado, $slot, $attacker);
 
-        \Illuminate\Support\Facades\Log::info('[attackUnit] após ataque — defensor no estado', [
+        Log::info('[attackUnit] após ataque — defensor no estado', [
             'defensor_atual' => $this->findUnit($estado, $opp, $defender['instancia_id']) ?? 'REMOVIDO (morto)',
         ]);
     }
@@ -408,15 +410,15 @@ class MatchEngine
 
         $next = $slot === 1 ? 2 : 1;
         $estado['jogador_da_vez'] = $next;
-        $match->jogador_da_vez   = $next;
-        $match->turno            = ($match->turno ?? 1) + 1;
-        $estado['turno']         = $match->turno;
+        $match->jogador_da_vez = $next;
+        $match->turno = ($match->turno ?? 1) + 1;
+        $estado['turno'] = $match->turno;
 
         $this->startTurn($estado, $next, $animacoes);
 
         // Calcula o deadline inline — sem chamar refreshTurnDeadline (que faria um save extra)
-        $turno   = $match->turno;
-        $cfg     = config('game.match.turn_timer');
+        $turno = $match->turno;
+        $cfg = config('game.match.turn_timer');
         $seconds = min(
             $cfg['max_seconds'],
             $cfg['base_seconds'] + ($turno - 1) * $cfg['increment_per_turn']
@@ -429,6 +431,7 @@ class MatchEngine
         // Broadcast deferido: executado APÓS a resposta ser enviada ao cliente
         defer(function () use ($match, $next, $timeout) {
             broadcast(new TurnChanged($match, $next, $timeout))->toOthers();
+            app(RankedBotTurnDispatcher::class)->notify($match->id, $next);
         });
     }
 
@@ -569,17 +572,17 @@ class MatchEngine
         // defer() executa APÓS a resposta HTTP ser enviada ao cliente —
         // o INSERT não bloqueia o tempo de resposta.
         $matchId = $match->id;
-        $turno   = $match->turno;
-        $cardId  = $payload['card_id'] ?? null;
+        $turno = $match->turno;
+        $cardId = $payload['card_id'] ?? null;
 
         defer(function () use ($matchId, $turno, $userId, $acao, $cardId, $payload) {
             MatchLog::create([
                 'match_id' => $matchId,
-                'turno'    => $turno,
-                'user_id'  => $userId,
-                'acao'     => $acao,
-                'card_id'  => $cardId,
-                'meta'     => $payload,
+                'turno' => $turno,
+                'user_id' => $userId,
+                'acao' => $acao,
+                'card_id' => $cardId,
+                'meta' => $payload,
             ]);
         });
     }

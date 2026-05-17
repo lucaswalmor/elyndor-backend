@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             CardSeeder::class,
             AvatarSeeder::class,
             ChestAndWeeklyPoolSeeder::class,
+            RankedSubstituteAccountsSeeder::class,
         ]);
     }
 }
