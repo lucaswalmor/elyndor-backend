@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\MatchStatus;
+use App\Events\MatchFinished;
 use App\Http\Controllers\Controller;
 use App\Models\GameMatch;
 use App\Services\Game\MatchEngine;
 use App\Services\Game\MatchViewBuilder;
+use App\Services\Logging\GameBalanceMatchTelemetry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -21,7 +24,7 @@ class MatchController extends Controller
     {
         $match = GameMatch::with('players.user')->findOrFail($id);
         $this->authorizeMatch($match, $request->user()->id);
-        $view  = $this->viewBuilder->forUser($match, $request->user());
+        $view = $this->viewBuilder->forUser($match, $request->user());
 
         return response()->json($view);
     }
@@ -33,14 +36,16 @@ class MatchController extends Controller
 
         try {
             $result = $this->engine->processAction($match, $request->user(), $request->all());
-            $view   = $this->viewBuilder->forUser($match, $request->user());
+            $view = $this->viewBuilder->forUser($match, $request->user());
 
             return response()->json([
-                'sucesso'           => true,
+                'sucesso' => true,
                 'estado_atualizado' => $view,
-                'animacoes'         => $result['animacoes'],
+                'animacoes' => $result['animacoes'],
             ]);
         } catch (InvalidArgumentException $e) {
+            GameBalanceMatchTelemetry::actionRejected($match, $request->user()->id, $request->all(), $e->getMessage());
+
             return response()->json(['message' => $e->getMessage()], 400);
         }
     }
@@ -64,37 +69,41 @@ class MatchController extends Controller
     public function surrender(Request $request, int $id): JsonResponse
     {
         $isAbandon = str_ends_with($request->path(), '/abandon');
-        $userId    = $request->user()->id;
-        $motivo    = $isAbandon ? 'abandon' : 'render';
+        $userId = $request->user()->id;
+        $motivo = $isAbandon ? 'abandon' : 'render';
 
         $match = GameMatch::with('players.user')->findOrFail($id);
         $this->authorizeMatch($match, $userId);
 
-        if ($match->status !== \App\Enums\MatchStatus::EmAndamento) {
+        if ($match->status !== MatchStatus::EmAndamento) {
+            GameBalanceMatchTelemetry::flowRejected($match, $userId, 'surrender', 'match_not_in_progress');
+
             return response()->json(['message' => 'Partida não está em andamento'], 400);
         }
 
-        $slot   = $match->players->first(fn ($p) => $p->user_id === $userId)?->player_slot;
-        $opp    = $slot === 1 ? 2 : 1;
+        $slot = $match->players->first(fn ($p) => $p->user_id === $userId)?->player_slot;
+        $opp = $slot === 1 ? 2 : 1;
         $estado = $match->estado;
         $winner = $estado['jogadores'][(string) $opp]['user_id'] ?? null;
 
         if (! $winner) {
+            GameBalanceMatchTelemetry::flowRejected($match, $userId, 'surrender', 'winner_not_resolvable');
+
             return response()->json(['message' => 'Erro interno ao processar render'], 500);
         }
 
         $status = $isAbandon
-            ? \App\Enums\MatchStatus::Abandonada
-            : \App\Enums\MatchStatus::Finalizada;
+            ? MatchStatus::Abandonada
+            : MatchStatus::Finalizada;
 
         $match->update([
-            'status'        => $status,
-            'vencedor_id'   => $winner,
+            'status' => $status,
+            'vencedor_id' => $winner,
             'finalizada_em' => now(),
         ]);
 
         defer(function () use ($match, $winner, $motivo) {
-            event(new \App\Events\MatchFinished($match, $winner, $motivo));
+            event(new MatchFinished($match, $winner, $motivo));
         });
 
         return response()->json(['sucesso' => true, 'motivo' => $motivo]);

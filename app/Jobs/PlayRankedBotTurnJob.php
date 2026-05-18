@@ -7,8 +7,10 @@ use App\Models\GameMatch;
 use App\Models\User;
 use App\Services\Bot\RankedSubstituteBrain;
 use App\Services\Game\MatchEngine;
+use App\Services\Logging\GameBalanceMatchTelemetry;
 use Illuminate\Bus\Queueable;
 use Illuminate\Foundation\Bus\Dispatchable;
+use InvalidArgumentException;
 
 final class PlayRankedBotTurnJob
 {
@@ -54,6 +56,10 @@ final class PlayRankedBotTurnJob
             try {
                 $engine->processAction($match, $botUser, $payload);
             } catch (\Throwable $e1) {
+                $match->refresh();
+                if ($e1 instanceof InvalidArgumentException) {
+                    GameBalanceMatchTelemetry::actionRejected($match, $botUser->id, $payload, $e1->getMessage());
+                }
                 if (($payload['acao'] ?? '') === 'finalizar_turno') {
                     return;
                 }

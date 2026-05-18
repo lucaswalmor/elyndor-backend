@@ -84,6 +84,51 @@ final class GameBalanceMatchTelemetry
         Log::channel('game_balance')->info('match.turn_timeout', $row);
     }
 
+    /**
+     * Pedido HTTP válido até ao motor, mas regra de jogo recusou (400).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public static function actionRejected(GameMatch $match, int $actorUserId, array $payload, string $reason): void
+    {
+        $match->refresh();
+        $estado = $match->estado ?? [];
+
+        Log::channel('game_balance')->warning('match.action_rejected', [
+            'match_id' => $match->id,
+            'modo' => $match->modo,
+            'actor_user_id' => $actorUserId,
+            'payload' => $payload,
+            'reason' => $reason,
+            'turno_modelo' => $match->turno,
+            'jogador_da_vez' => $estado['jogador_da_vez'] ?? null,
+            'state_digest' => $estado !== [] ? self::digestEstado($estado) : null,
+        ]);
+    }
+
+    /**
+     * Fluxo de partida bloqueado antes do motor (ex.: rendição com status inválido).
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    public static function flowRejected(GameMatch $match, ?int $userId, string $context, string $reason, array $extra = []): void
+    {
+        $match->refresh();
+        $estado = $match->estado ?? [];
+
+        Log::channel('game_balance')->warning('match.flow_rejected', array_merge([
+            'match_id' => $match->id,
+            'modo' => $match->modo,
+            'context' => $context,
+            'user_id' => $userId,
+            'reason' => $reason,
+            'match_status' => $match->status->value,
+            'turno_modelo' => $match->turno,
+            'jogador_da_vez' => $estado['jogador_da_vez'] ?? null,
+            'state_digest' => $estado !== [] ? self::digestEstado($estado) : null,
+        ], $extra));
+    }
+
     public static function matchFinished(GameMatch $match, int $vencedorUserId, string $motivo): void
     {
         $estado = $match->estado ?? [];
