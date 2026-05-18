@@ -10,7 +10,6 @@ use App\Models\GameMatch;
 use App\Models\MatchLog;
 use App\Models\User;
 use App\Services\Bot\RankedBotTurnDispatcher;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -137,11 +136,6 @@ class MatchEngine
             $this->syncUnit($estado, $slot, $unit);
             $animacoes[] = ['tipo' => 'escudo_quebrado', 'instancia_id' => $id];
 
-            Log::info('[damageUnit] escudo absorveu ataque', [
-                'instancia_id' => $id,
-                'card_id' => $unit['card_id'],
-            ]);
-
             return;
         }
 
@@ -158,13 +152,6 @@ class MatchEngine
         $unit['vida_atual'] -= $dmg;
         $animacoes[] = ['tipo' => 'dano', 'instancia_id' => $id, 'valor' => $dmg];
 
-        Log::info('[damageUnit] dano aplicado', [
-            'instancia_id' => $id,
-            'card_id' => $unit['card_id'],
-            'dmg' => $dmg,
-            'vida_restante' => $unit['vida_atual'],
-        ]);
-
         if ($unit['vida_atual'] <= 0) {
             $this->killUnit($estado, $slot, $id, $animacoes);
         } else {
@@ -180,12 +167,6 @@ class MatchEngine
         if (! $unit) {
             return;
         }
-
-        Log::info('[killUnit] unidade eliminada', [
-            'instancia_id' => $instanciaId,
-            'card_id' => $unit['card_id'],
-            'slot' => $slot,
-        ]);
 
         $this->effects->triggerSkills($estado, $slot, 'ao_morrer', $unit, $animacoes);
 
@@ -351,17 +332,8 @@ class MatchEngine
             throw new InvalidArgumentException('Deve atacar a unidade com provocação primeiro');
         }
 
-        Log::info('[attackUnit] início do ataque', [
-            'atacante' => ['id' => $attacker['instancia_id'], 'card' => $attacker['card_id'], 'atk' => $attacker['ataque'] ?? '?', 'vida' => $attacker['vida_atual']],
-            'defensor' => ['id' => $defender['instancia_id'], 'card' => $defender['card_id'], 'vida' => $defender['vida_atual'], 'flags' => $defender['flags'] ?? []],
-        ]);
-
         $this->unitAttack($estado, $slot, $attacker, $opp, $defender, $animacoes);
         $this->syncUnit($estado, $slot, $attacker);
-
-        Log::info('[attackUnit] após ataque — defensor no estado', [
-            'defensor_atual' => $this->findUnit($estado, $opp, $defender['instancia_id']) ?? 'REMOVIDO (morto)',
-        ]);
     }
 
     private function attackPlayer(array &$estado, int $slot, array $payload, array &$animacoes): void

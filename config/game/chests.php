@@ -40,4 +40,10 @@ return [
         'slug' => 'chest_premium_padrao',
         'cost_moedas' => 450,
     ],
+
+    /** Reembolso self-service só moedas; janela e TZ fixos (F / produção playtest). */
+    'purchase_refund' => [
+        'timezone' => env('CHEST_PURCHASE_REFUND_TZ', 'America/Sao_Paulo'),
+        'window_hours' => (int) env('CHEST_PURCHASE_REFUND_WINDOW_HOURS', 24),
+    ],
 ];

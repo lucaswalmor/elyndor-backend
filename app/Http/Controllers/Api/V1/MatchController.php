@@ -67,26 +67,10 @@ class MatchController extends Controller
         $userId    = $request->user()->id;
         $motivo    = $isAbandon ? 'abandon' : 'render';
 
-        \Illuminate\Support\Facades\Log::info("[surrender] iniciado", [
-            'match_id'  => $id,
-            'user_id'   => $userId,
-            'motivo'    => $motivo,
-        ]);
-
         $match = GameMatch::with('players.user')->findOrFail($id);
         $this->authorizeMatch($match, $userId);
 
-        \Illuminate\Support\Facades\Log::info("[surrender] status atual da partida", [
-            'match_id' => $id,
-            'status'   => $match->status?->value,
-        ]);
-
         if ($match->status !== \App\Enums\MatchStatus::EmAndamento) {
-            \Illuminate\Support\Facades\Log::warning("[surrender] bloqueado — partida não está em andamento", [
-                'match_id' => $id,
-                'status'   => $match->status?->value,
-                'user_id'  => $userId,
-            ]);
             return response()->json(['message' => 'Partida não está em andamento'], 400);
         }
 
@@ -95,18 +79,7 @@ class MatchController extends Controller
         $estado = $match->estado;
         $winner = $estado['jogadores'][(string) $opp]['user_id'] ?? null;
 
-        \Illuminate\Support\Facades\Log::info("[surrender] calculando vencedor", [
-            'match_id'     => $id,
-            'slot_perdedor'=> $slot,
-            'slot_vencedor'=> $opp,
-            'winner_id'    => $winner,
-        ]);
-
         if (! $winner) {
-            \Illuminate\Support\Facades\Log::error("[surrender] winner_id nulo — estado['jogadores'] inválido", [
-                'match_id' => $id,
-                'jogadores' => array_keys($estado['jogadores'] ?? []),
-            ]);
             return response()->json(['message' => 'Erro interno ao processar render'], 500);
         }
 
@@ -114,26 +87,14 @@ class MatchController extends Controller
             ? \App\Enums\MatchStatus::Abandonada
             : \App\Enums\MatchStatus::Finalizada;
 
-        $updated = $match->update([
+        $match->update([
             'status'        => $status,
             'vencedor_id'   => $winner,
             'finalizada_em' => now(),
         ]);
 
-        \Illuminate\Support\Facades\Log::info("[surrender] partida atualizada", [
-            'match_id'  => $id,
-            'updated'   => $updated,
-            'status'    => $status->value,
-            'winner_id' => $winner,
-        ]);
-
         defer(function () use ($match, $winner, $motivo) {
             event(new \App\Events\MatchFinished($match, $winner, $motivo));
-            \Illuminate\Support\Facades\Log::info("[surrender] MatchFinished broadcast enviado", [
-                'match_id'  => $match->id,
-                'motivo'    => $motivo,
-                'winner_id' => $winner,
-            ]);
         });
 
         return response()->json(['sucesso' => true, 'motivo' => $motivo]);

@@ -83,6 +83,50 @@ class RankedService
     }
 
     /**
+     * Comparar dois snapshots de pontos e detetar cruzamento de limite entre divisões (para logs Fase F e futuro modal rank-up).
+     *
+     * @return array{
+     *     changed: bool,
+     *     direction: 'promote'|'demote'|'none',
+     *     from_key: string,
+     *     to_key: string,
+     *     from_label: string|null,
+     *     to_label: string|null,
+     * }
+     */
+    public function eloBracketMovementBetweenSnapshots(int $pointsBefore, int $pointsAfter): array
+    {
+        $fromKey = $this->divisionKeyForPoints($pointsBefore);
+        $toKey = $this->divisionKeyForPoints($pointsAfter);
+        $fromLabel = $this->divisionLabelForKey($fromKey);
+        $toLabel = $this->divisionLabelForKey($toKey);
+
+        if ($fromKey === $toKey) {
+            return [
+                'changed' => false,
+                'direction' => 'none',
+                'from_key' => $fromKey,
+                'to_key' => $toKey,
+                'from_label' => $fromLabel,
+                'to_label' => $toLabel,
+            ];
+        }
+
+        $fromTi = $this->tierIndex($fromKey);
+        $toTi = $this->tierIndex($toKey);
+        $direction = $toTi > $fromTi ? 'promote' : 'demote';
+
+        return [
+            'changed' => true,
+            'direction' => $direction,
+            'from_key' => $fromKey,
+            'to_key' => $toKey,
+            'from_label' => $fromLabel,
+            'to_label' => $toLabel,
+        ];
+    }
+
+    /**
      * Fila ranqueada: mesmo tier sempre; tier adjacente só após N segundos na fila (maior espera dos dois).
      */
     public function pairingAllowed(string $divKeyA, string $divKeyB, int $maxWaitSeconds): bool

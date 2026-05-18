@@ -14,6 +14,7 @@ class ChestShopPurchase extends Model
         'currency',
         'unit_price',
         'total_paid',
+        'refunded_at',
     ];
 
     protected function casts(): array
@@ -22,6 +23,7 @@ class ChestShopPurchase extends Model
             'quantity' => 'integer',
             'unit_price' => 'integer',
             'total_paid' => 'integer',
+            'refunded_at' => 'datetime',
         ];
     }
 

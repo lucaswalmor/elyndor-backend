@@ -7,6 +7,7 @@ use App\Models\MatchPlayer;
 use App\Models\RankedMatchOutcome;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RankedOutcomeService
 {
@@ -113,6 +114,23 @@ class RankedOutcomeService
             'pontos_antes' => $antes,
             'pontos_depois' => $depois,
             'divisao_oponente' => $oppDiv,
+        ]);
+
+        $bracketMovement = $this->ranked->eloBracketMovementBetweenSnapshots($antes, $depois);
+        Log::channel('game_balance')->info('ranked.match_player_outcome', [
+            'match_id' => $match->id,
+            'user_id' => $userId,
+            'won' => $won,
+            'delta' => $delta,
+            'points_before' => $antes,
+            'points_after' => $depois,
+            'opponent_division_key' => $oppDiv,
+            'tier_changed' => $bracketMovement['changed'],
+            'tier_direction' => $bracketMovement['direction'],
+            'tier_from_key' => $bracketMovement['from_key'],
+            'tier_to_key' => $bracketMovement['to_key'],
+            'tier_from_label' => $bracketMovement['from_label'],
+            'tier_to_label' => $bracketMovement['to_label'],
         ]);
     }
 }
