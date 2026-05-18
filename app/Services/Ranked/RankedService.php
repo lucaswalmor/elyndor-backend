@@ -12,6 +12,20 @@ class RankedService
         return config('game.ranked.divisions', []);
     }
 
+    /**
+     * @return array{key: string, label: string, min: int, max: ?int}|null
+     */
+    public function divisionDefinitionByKey(string $key): ?array
+    {
+        foreach ($this->divisions() as $div) {
+            if ($div['key'] === $key) {
+                return $div;
+            }
+        }
+
+        return null;
+    }
+
     public function divisionKeyForPoints(int $points): string
     {
         foreach ($this->divisions() as $div) {

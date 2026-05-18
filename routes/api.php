@@ -18,6 +18,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login']);
 
     Route::get('/avatars/starters', [ProfileController::class, 'starters']);
+    Route::get('/ranked/divisions', [ProfileController::class, 'rankedDivisionOptions']);
     Route::get('/ranked/leaderboard', [ProfileController::class, 'leaderboard']);
     Route::get('/profile/{nickname}/ranked-history', [ProfileController::class, 'publicRankedHistory'])
         ->where('nickname', '[a-zA-Z0-9_-]+');

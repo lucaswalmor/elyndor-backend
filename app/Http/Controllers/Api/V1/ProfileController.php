@@ -35,12 +35,44 @@ class ProfileController extends Controller
         return response()->json(['data' => $rows]);
     }
 
+    /** Lista pública das divisões (elo) para filtros no ranking — sem valores min/max ao cliente. */
+    public function rankedDivisionOptions(): JsonResponse
+    {
+        $data = collect($this->ranked->divisions())->map(fn (array $d) => [
+            'key' => $d['key'],
+            'label' => $d['label'],
+        ])->values();
+
+        return response()->json(['data' => $data]);
+    }
+
     public function leaderboard(Request $request): JsonResponse
     {
         $limit = min(100, max(1, (int) $request->query('limit', 20)));
-        $users = User::query()
+        $tierKey = trim((string) $request->query('divisao', ''));
+
+        $query = User::query()
             ->where('is_bot', false)
-            ->with(['playerLevel', 'avatar'])
+            ->with(['playerLevel', 'avatar']);
+
+        if ($tierKey !== '') {
+            $def = $this->ranked->divisionDefinitionByKey($tierKey);
+            if ($def === null) {
+                throw ValidationException::withMessages([
+                    'divisao' => ['Divisão inválida.'],
+                ]);
+            }
+
+            $min = (int) $def['min'];
+            $max = $def['max'];
+            if ($max === null) {
+                $query->where('ranked_points', '>=', $min);
+            } else {
+                $query->whereBetween('ranked_points', [$min, (int) $max]);
+            }
+        }
+
+        $users = $query
             ->orderByDesc('ranked_points')
             ->limit($limit)
             ->get([
