@@ -7,8 +7,11 @@ use App\Http\Resources\PublicProfileResource;
 use App\Http\Resources\UserResource;
 use App\Models\Avatar;
 use App\Models\PlayerCosmeticUnlock;
+use App\Models\RankedMatchOutcome;
 use App\Models\User;
 use App\Services\Cosmetics\CosmeticLabelService;
+use App\Services\Ranked\RankedService;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -18,6 +21,7 @@ class ProfileController extends Controller
 {
     public function __construct(
         private CosmeticLabelService $cosmeticLabels,
+        private RankedService $ranked,
     ) {}
 
     public function starters(): JsonResponse
@@ -58,6 +62,72 @@ class ProfileController extends Controller
             ->firstOrFail();
 
         return response()->json(['data' => new PublicProfileResource($user)]);
+    }
+
+    public function myRankedHistory(Request $request): JsonResponse
+    {
+        $limit = min(50, max(1, (int) $request->query('limit', 20)));
+        /** @var EloquentCollection<int, RankedMatchOutcome> $rows */
+        $rows = RankedMatchOutcome::query()
+            ->where('user_id', $request->user()->id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+
+        return response()->json([
+            'data' => $this->serializeRankedOutcomes($rows, true),
+        ]);
+    }
+
+    public function publicRankedHistory(Request $request, string $nickname): JsonResponse
+    {
+        $limit = min(30, max(1, (int) $request->query('limit', 12)));
+        $user = User::query()->where('nickname', $nickname)->firstOrFail();
+        /** @var EloquentCollection<int, RankedMatchOutcome> $rows */
+        $rows = RankedMatchOutcome::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit($limit)
+            ->get();
+
+        return response()->json([
+            'data' => $this->serializeRankedOutcomes($rows, false),
+        ]);
+    }
+
+    /**
+     * @param  EloquentCollection<int, RankedMatchOutcome>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function serializeRankedOutcomes(EloquentCollection $rows, bool $withMatchId): array
+    {
+        $out = [];
+        foreach ($rows as $row) {
+            /** @var RankedMatchOutcome $row */
+            $oppKey = $row->divisao_oponente;
+            $oppLabel = $this->ranked->divisionLabelForKey($oppKey);
+            if ($oppLabel === null) {
+                $oppLabel = ($oppKey === null || $oppKey === '') ? 'Substituto' : (string) $oppKey;
+            }
+
+            $entry = [
+                'venceu' => (bool) $row->venceu,
+                'delta' => (int) $row->delta,
+                'pontos_antes' => (int) $row->pontos_antes,
+                'pontos_depois' => (int) $row->pontos_depois,
+                'divisao_oponente' => $oppKey,
+                'divisao_oponente_label' => $oppLabel,
+                'ocorreu_em' => $row->created_at?->toIso8601String(),
+            ];
+            if ($withMatchId) {
+                $entry['match_id'] = (int) $row->match_id;
+            }
+            $out[] = $entry;
+        }
+
+        return $out;
     }
 
     public function updateCosmetics(Request $request): JsonResponse

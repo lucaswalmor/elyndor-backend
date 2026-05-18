@@ -42,6 +42,21 @@ class RankedService
         return $key;
     }
 
+    public function divisionLabelForKey(?string $divisionKey): ?string
+    {
+        if ($divisionKey === null || $divisionKey === '') {
+            return null;
+        }
+
+        foreach ($this->divisions() as $div) {
+            if ($div['key'] === $divisionKey) {
+                return $div['label'];
+            }
+        }
+
+        return $divisionKey;
+    }
+
     public function tierIndex(string $divisionKey): int
     {
         foreach ($this->divisions() as $i => $div) {

@@ -7,8 +7,8 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
-use App\Models\UserSession;
 use App\Services\Auth\RegisterService;
+use App\Services\Auth\UserSessionTracker;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -18,11 +18,15 @@ class AuthController extends Controller
 {
     public function __construct(
         private RegisterService $registerService,
+        private UserSessionTracker $sessions,
     ) {}
 
     public function register(RegisterRequest $request): JsonResponse
     {
         $user = $this->registerService->register($request->validated());
+        $user->tokens()->delete();
+        $this->sessions->beginSession($request, $user);
+
         $token = $user->createToken('api')->plainTextToken;
 
         return response()->json([
@@ -44,14 +48,7 @@ class AuthController extends Controller
         $user->load(['playerLevel', 'avatar']);
         $user->tokens()->delete();
 
-        UserSession::query()->create([
-            'user_id' => $user->id,
-            'ip_address' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 2000),
-            'device_id' => $request->filled('device_id') ? substr((string) $request->device_id, 0, 80) : null,
-            'client_type' => $request->input('client_type', 'web'),
-            'last_seen_at' => now(),
-        ]);
+        $this->sessions->beginSession($request, $user);
 
         $token = $user->createToken('api')->plainTextToken;
 
@@ -70,8 +67,10 @@ class AuthController extends Controller
 
     public function me(Request $request): UserResource
     {
-        $request->user()->load(['playerLevel', 'avatar']);
+        $user = $request->user();
+        $this->sessions->touch($request, $user);
+        $user->load(['playerLevel', 'avatar']);
 
-        return new UserResource($request->user());
+        return new UserResource($user);
     }
 }

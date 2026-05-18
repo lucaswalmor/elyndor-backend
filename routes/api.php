@@ -4,30 +4,34 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CollectionController;
 use App\Http\Controllers\Api\V1\DeckController;
 use App\Http\Controllers\Api\V1\DevController;
-use App\Http\Controllers\Api\V1\MatchController;
-use App\Http\Controllers\Api\V1\MatchmakingController;
-use App\Http\Controllers\Api\V1\WeeklyController;
-use App\Http\Controllers\Api\V1\ShopController;
 use App\Http\Controllers\Api\V1\EconomyController;
 use App\Http\Controllers\Api\V1\InventoryController;
+use App\Http\Controllers\Api\V1\MatchController;
+use App\Http\Controllers\Api\V1\MatchmakingController;
+use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\ShopController;
+use App\Http\Controllers\Api\V1\WeeklyController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login', [AuthController::class, 'login']);
 
-    Route::get('/avatars/starters', [\App\Http\Controllers\Api\V1\ProfileController::class, 'starters']);
-    Route::get('/ranked/leaderboard', [\App\Http\Controllers\Api\V1\ProfileController::class, 'leaderboard']);
-    Route::get('/profile/{nickname}', [\App\Http\Controllers\Api\V1\ProfileController::class, 'show'])
+    Route::get('/avatars/starters', [ProfileController::class, 'starters']);
+    Route::get('/ranked/leaderboard', [ProfileController::class, 'leaderboard']);
+    Route::get('/profile/{nickname}/ranked-history', [ProfileController::class, 'publicRankedHistory'])
+        ->where('nickname', '[a-zA-Z0-9_-]+');
+    Route::get('/profile/{nickname}', [ProfileController::class, 'show'])
         ->where('nickname', '[a-zA-Z0-9_-]+');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
 
-        Route::put('/profile/cosmetics', [\App\Http\Controllers\Api\V1\ProfileController::class, 'updateCosmetics']);
-        Route::get('/profile/me/avatars', [\App\Http\Controllers\Api\V1\ProfileController::class, 'unlockSummary']);
-        Route::get('/profile/me/cosmetic-unlocks', [\App\Http\Controllers\Api\V1\ProfileController::class, 'cosmeticUnlocks']);
+        Route::put('/profile/cosmetics', [ProfileController::class, 'updateCosmetics']);
+        Route::get('/profile/me/ranked-history', [ProfileController::class, 'myRankedHistory']);
+        Route::get('/profile/me/avatars', [ProfileController::class, 'unlockSummary']);
+        Route::get('/profile/me/cosmetic-unlocks', [ProfileController::class, 'cosmeticUnlocks']);
 
         Route::get('/collection', [CollectionController::class, 'index']);
         Route::get('/weekly/status', [WeeklyController::class, 'status']);
@@ -57,7 +61,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/matches/{id}/reconnect', [MatchController::class, 'reconnect']);
         // surrender = render voluntário | abandon = fechou a aba (mesmo resultado)
         Route::post('/matches/{id}/surrender', [MatchController::class, 'surrender']);
-        Route::post('/matches/{id}/abandon',   [MatchController::class, 'surrender']);
+        Route::post('/matches/{id}/abandon', [MatchController::class, 'surrender']);
 
         Route::post('/dev/pair-queue', [DevController::class, 'pairQueue']);
     });

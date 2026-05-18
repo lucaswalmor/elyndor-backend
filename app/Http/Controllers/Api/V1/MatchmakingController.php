@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\GameMatch;
+use App\Services\Auth\UserSessionTracker;
 use App\Services\Match\MatchmakingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ class MatchmakingController extends Controller
 {
     public function __construct(
         private MatchmakingService $matchmaking,
+        private UserSessionTracker $sessions,
     ) {}
 
     public function join(Request $request): JsonResponse
@@ -25,6 +27,8 @@ class MatchmakingController extends Controller
         ]);
 
         try {
+            $this->sessions->touch($request, $request->user());
+
             return response()->json(
                 $this->matchmaking->join(
                     $request->user(),
@@ -50,6 +54,8 @@ class MatchmakingController extends Controller
 
     public function status(Request $request): JsonResponse
     {
+        $this->sessions->touch($request, $request->user());
+
         return response()->json($this->matchmaking->status($request->user()));
     }
 
