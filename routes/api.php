@@ -1,16 +1,20 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\StatsController;
+use App\Http\Controllers\Api\V1\ChatController;
 use App\Http\Controllers\Api\V1\CollectionController;
 use App\Http\Controllers\Api\V1\DeckController;
 use App\Http\Controllers\Api\V1\DevController;
 use App\Http\Controllers\Api\V1\EconomyController;
+use App\Http\Controllers\Api\V1\FriendshipController;
+use App\Http\Controllers\Api\V1\InAppNotificationController;
 use App\Http\Controllers\Api\V1\InventoryController;
 use App\Http\Controllers\Api\V1\MatchController;
 use App\Http\Controllers\Api\V1\MatchmakingController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\SocialSummaryController;
 use App\Http\Controllers\Api\V1\ShopController;
+use App\Http\Controllers\Api\V1\StatsController;
 use App\Http\Controllers\Api\V1\WeeklyController;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +73,28 @@ Route::prefix('v1')->group(function () {
         // surrender = render voluntário | abandon = fechou a aba (mesmo resultado)
         Route::post('/matches/{id}/surrender', [MatchController::class, 'surrender']);
         Route::post('/matches/{id}/abandon', [MatchController::class, 'surrender']);
+
+        Route::get('/social/summary', SocialSummaryController::class);
+
+        Route::get('/social/friends', [FriendshipController::class, 'index']);
+        Route::get('/social/friends/requests/incoming', [FriendshipController::class, 'incomingRequests']);
+        Route::get('/social/friends/requests/outgoing', [FriendshipController::class, 'outgoingRequests']);
+        Route::post('/social/friends/request', [FriendshipController::class, 'sendRequest']);
+        Route::post('/social/friends/requests/{friendRequest}/accept', [FriendshipController::class, 'accept']);
+        Route::post('/social/friends/requests/{friendRequest}/decline', [FriendshipController::class, 'decline']);
+        Route::delete('/social/friends/requests/{friendRequest}', [FriendshipController::class, 'cancel']);
+        Route::delete('/social/friends/{user}', [FriendshipController::class, 'destroy']);
+        Route::post('/social/block', [FriendshipController::class, 'block']);
+        Route::delete('/social/block/{user}', [FriendshipController::class, 'unblock']);
+
+        Route::get('/social/chat/conversations', [ChatController::class, 'conversations']);
+        Route::get('/social/chat/with/{user}', [ChatController::class, 'messages']);
+        Route::post('/social/chat/with/{user}', [ChatController::class, 'send']);
+        Route::post('/social/chat/with/{user}/read', [ChatController::class, 'markRead']);
+
+        Route::get('/social/notifications', [InAppNotificationController::class, 'index']);
+        Route::post('/social/notifications/read-all', [InAppNotificationController::class, 'markAllRead']);
+        Route::post('/social/notifications/{notification}/read', [InAppNotificationController::class, 'markRead']);
 
         Route::post('/dev/pair-queue', [DevController::class, 'pairQueue']);
     });

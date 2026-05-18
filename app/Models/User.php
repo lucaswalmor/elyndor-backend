@@ -55,6 +55,16 @@ class User extends Authenticatable implements CanResetPasswordContract
         return $this->belongsToMany(Avatar::class, 'player_avatars')->withTimestamps();
     }
 
+    public function outgoingFriendRequests(): HasMany
+    {
+        return $this->hasMany(FriendRequest::class, 'requester_id');
+    }
+
+    public function incomingFriendRequests(): HasMany
+    {
+        return $this->hasMany(FriendRequest::class, 'addressee_id');
+    }
+
     /**
      * Get the attributes that should be cast.
      *

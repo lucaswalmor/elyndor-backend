@@ -16,3 +16,7 @@ Broadcast::channel('match.{matchId}', function ($user, $matchId) {
         ->whereHas('players', fn ($q) => $q->where('user_id', $user->id))
         ->exists();
 });
+
+Broadcast::channel('social.{userId}', function ($user, $userId) {
+    return (int) $user->id === (int) $userId;
+});
