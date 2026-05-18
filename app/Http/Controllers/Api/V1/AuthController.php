@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Auth\RegisterService;
 use App\Services\Auth\UserSessionTracker;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -23,7 +27,9 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        $user = $this->registerService->register($request->validated());
+        $user = $this->registerService->register(
+            Arr::except($request->validated(), ['accept_terms'])
+        );
         $user->tokens()->delete();
         $this->sessions->beginSession($request, $user);
 
@@ -72,5 +78,45 @@ class AuthController extends Controller
         $user->load(['playerLevel', 'avatar']);
 
         return new UserResource($user);
+    }
+
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    {
+        $status = Password::broker()->sendResetLink($request->validated());
+
+        if ($status === Password::RESET_THROTTLED) {
+            return response()->json([
+                'message' => 'Aguarde antes de solicitar um novo envio.',
+            ], 429);
+        }
+
+        return response()->json([
+            'message' => 'Se existir uma conta com este e-mail, enviámos um link para redefinir a senha.',
+        ]);
+    }
+
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $status = Password::broker()->reset(
+            [
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'password_confirmation' => $validated['password_confirmation'],
+                'token' => $validated['token'],
+            ],
+            function (User $user, string $password) {
+                $user->forceFill(['password' => $password])->save();
+            },
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => __($status),
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Senha redefinida com sucesso. Faça login.']);
     }
 }

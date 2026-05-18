@@ -38,7 +38,7 @@ class RankedSubstitutePairingService
                 return null;
             }
 
-            $wait = now()->diffInSeconds($humanRow->entrou_na_fila_em);
+            $wait = max(0, (int) floor($humanRow->entrou_na_fila_em->diffInSeconds(now(), true)));
             $need = (int) config('game.bots.queue.ranked_fallback_after_seconds', 30);
             if ($wait < $need) {
                 return null;
@@ -61,7 +61,7 @@ class RankedSubstitutePairingService
 
             MatchmakingQueue::where('user_id', $humanRow->user_id)->delete();
 
-            $seconds = (int) config('game.match.accept_offer_seconds', 45);
+            $seconds = (int) config('game.match.accept_offer_seconds', 15);
 
             $match = GameMatch::create([
                 'modo' => 'ranqueada',

@@ -6,7 +6,7 @@
  */
 return [
     /** Segundos para ambos aceitarem o pareamento antes da oferta expirar. */
-    'accept_offer_seconds' => (int) env('MATCH_ACCEPT_OFFER_SECONDS', 45),
+    'accept_offer_seconds' => (int) env('MATCH_ACCEPT_OFFER_SECONDS', 15),
 
     'turn_timer' => [
         'base_seconds' => 20,

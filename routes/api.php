@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\StatsController;
 use App\Http\Controllers\Api\V1\CollectionController;
 use App\Http\Controllers\Api\V1\DeckController;
 use App\Http\Controllers\Api\V1\DevController;
@@ -16,6 +17,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register']);
     Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+
+    Route::get('/stats/online-players', [StatsController::class, 'onlinePlayers']);
 
     Route::get('/avatars/starters', [ProfileController::class, 'starters']);
     Route::get('/ranked/divisions', [ProfileController::class, 'rankedDivisionOptions']);
@@ -25,7 +30,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/profile/{nickname}', [ProfileController::class, 'show'])
         ->where('nickname', '[a-zA-Z0-9_-]+');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'touch.session'])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
 

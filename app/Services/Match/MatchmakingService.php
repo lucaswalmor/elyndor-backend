@@ -278,7 +278,7 @@ class MatchmakingService
         }
 
         foreach ($queues as $i => $a) {
-            $waitA = now()->diffInSeconds($a->entrou_na_fila_em);
+            $waitA = max(0, (int) floor($a->entrou_na_fila_em->diffInSeconds(now(), true)));
             foreach ($queues as $j => $b) {
                 if ($i >= $j) {
                     continue;
@@ -286,7 +286,10 @@ class MatchmakingService
                 if (! $this->antiAbuse->allowsRankedPair($a, $b)) {
                     continue;
                 }
-                $maxWait = max($waitA, now()->diffInSeconds($b->entrou_na_fila_em));
+                $maxWait = max(
+                    $waitA,
+                    max(0, (int) floor($b->entrou_na_fila_em->diffInSeconds(now(), true))),
+                );
                 $divA = (string) $a->divisao;
                 $divB = (string) $b->divisao;
                 if (! $this->ranked->pairingAllowed($divA, $divB, $maxWait)) {
@@ -317,8 +320,8 @@ class MatchmakingService
 
             if ($modo === 'ranqueada') {
                 $maxWait = max(
-                    now()->diffInSeconds($freshA->entrou_na_fila_em),
-                    now()->diffInSeconds($freshB->entrou_na_fila_em)
+                    max(0, (int) floor($freshA->entrou_na_fila_em->diffInSeconds(now(), true))),
+                    max(0, (int) floor($freshB->entrou_na_fila_em->diffInSeconds(now(), true)))
                 );
                 if (! $this->ranked->pairingAllowed((string) $freshA->divisao, (string) $freshB->divisao, $maxWait)) {
                     return null;
@@ -330,7 +333,7 @@ class MatchmakingService
 
             MatchmakingQueue::whereIn('user_id', [$freshA->user_id, $freshB->user_id])->delete();
 
-            $seconds = (int) config('game.match.accept_offer_seconds', 45);
+            $seconds = (int) config('game.match.accept_offer_seconds', 15);
 
             $match = GameMatch::create([
                 'modo' => $modo,

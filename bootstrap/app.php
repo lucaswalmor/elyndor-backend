@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
+        $middleware->alias([
+            'touch.session' => \App\Http\Middleware\TouchSessionPresence::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

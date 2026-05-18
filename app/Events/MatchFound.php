@@ -39,7 +39,7 @@ class MatchFound implements ShouldBroadcast
         $deadline = $this->match->accept_deadline_at;
         $segundos = $deadline
             ? max(0, $deadline->getTimestamp() - now()->getTimestamp())
-            : (int) config('game.match.accept_offer_seconds', 45);
+            : (int) config('game.match.accept_offer_seconds', 15);
 
         return [
             'match_id' => $this->match->id,

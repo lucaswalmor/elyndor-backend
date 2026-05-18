@@ -11,15 +11,18 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Auth\Passwords\CanResetPassword;
+use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['name', 'nickname', 'email', 'password', 'moedas', 'cristais', 'card_back_slug', 'profile_bg_slug', 'match_board_slug', 'avatar_id', 'ranked_points', 'ranked_wins', 'ranked_losses', 'total_matches_played', 'match_mode_counts', 'playtime_seconds', 'registration_device_id'])]
 #[Hidden(['name', 'email', 'password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements CanResetPasswordContract
 {
     /** @use HasFactory<UserFactory> */
+    use CanResetPassword;
     use HasApiTokens, HasFactory, Notifiable;
 
     public function playerLevel(): HasOne
