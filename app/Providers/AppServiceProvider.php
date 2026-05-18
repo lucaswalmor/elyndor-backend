@@ -6,6 +6,7 @@ use App\Events\MatchFinished;
 use App\Listeners\ApplyMatchProgressionRewards;
 use App\Listeners\ApplyPlayerMatchStats;
 use App\Listeners\ApplyRankedMatchOutcome;
+use App\Listeners\LogGameBalanceMatchFinished;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Broadcast;
@@ -42,5 +43,6 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(MatchFinished::class, ApplyMatchProgressionRewards::class);
         Event::listen(MatchFinished::class, ApplyRankedMatchOutcome::class);
         Event::listen(MatchFinished::class, ApplyPlayerMatchStats::class);
+        Event::listen(MatchFinished::class, LogGameBalanceMatchFinished::class);
     }
 }

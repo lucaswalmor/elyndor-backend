@@ -10,6 +10,7 @@ use App\Models\GameMatch;
 use App\Models\MatchLog;
 use App\Models\User;
 use App\Services\Bot\RankedBotTurnDispatcher;
+use App\Services\Logging\GameBalanceMatchTelemetry;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -58,6 +59,16 @@ class MatchEngine
             $match->estado = $estado;
         }
         $match->save();
+
+        GameBalanceMatchTelemetry::actionApplied(
+            $match,
+            $user->id,
+            $slot,
+            $acao,
+            $payload,
+            $animacoes,
+            $match->estado ?? [],
+        );
 
         $this->logAction($match, $user->id, $acao, $payload); // deferred
 
@@ -121,7 +132,9 @@ class MatchEngine
             $slot = $estado['jogador_da_vez'];
             $animacoes = [];
             $this->endTurn($match, $estado, $slot, $animacoes, true);
-            $match->refresh();
+            $match->save();
+
+            return;
         }
     }
 
@@ -399,6 +412,10 @@ class MatchEngine
 
         // Atualiza estado no modelo — processAction fará o único save necessário
         $match->estado = $estado;
+
+        if ($timeout) {
+            GameBalanceMatchTelemetry::turnTimeout($match, $slot, $animacoes);
+        }
 
         // Broadcast deferido: executado APÓS a resposta ser enviada ao cliente
         defer(function () use ($match, $next, $timeout) {

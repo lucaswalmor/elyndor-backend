@@ -6,6 +6,7 @@ use App\Enums\MatchStatus;
 use App\Models\Deck;
 use App\Models\GameMatch;
 use App\Models\MatchPlayer;
+use App\Services\Logging\GameBalanceMatchTelemetry;
 use Illuminate\Support\Str;
 
 class MatchInitializer
@@ -42,6 +43,8 @@ class MatchInitializer
         ]);
 
         app(MatchEngine::class)->refreshTurnDeadline($match);
+
+        GameBalanceMatchTelemetry::matchStarted($match->fresh(['players']));
     }
 
     private function playerBlock(MatchPlayer $mp, array $mao, array $deck): array
