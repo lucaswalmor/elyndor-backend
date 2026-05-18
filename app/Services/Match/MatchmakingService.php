@@ -169,7 +169,11 @@ class MatchmakingService
 
         return [
             'status' => 'aguardando',
-            'tempo_na_fila_segundos' => now()->diffInSeconds($entry->entrou_na_fila_em),
+            // Carbon: $a->diffInSeconds($b) = $b − $a; queremos now − entrou_na_fila_em (valor ≥ 0).
+            'tempo_na_fila_segundos' => max(
+                0,
+                (int) floor($entry->entrou_na_fila_em->diffInSeconds(now(), true)),
+            ),
             'modo' => $entry->modo,
         ];
     }
