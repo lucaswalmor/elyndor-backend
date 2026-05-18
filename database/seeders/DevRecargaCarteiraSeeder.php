@@ -18,7 +18,7 @@ use Illuminate\Database\Seeder;
  * - Se DEV_TOPUP_MOEDAS e DEV_TOPUP_CRISTAIS vierem ambos vazios/ausentes → usa 1_000_000 em cada.
  * - Se só definires uma das duas → atualiza só essa coluna (a outra mantém-se).
  */
-class DevWalletTopupSeeder extends Seeder
+class DevRecargaCarteiraSeeder extends Seeder
 {
     private const DEFAULT_EACH = 1_000_000;
 

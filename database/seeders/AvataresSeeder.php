@@ -7,7 +7,7 @@ use App\Models\PlayerAvatar;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
-class AvatarSeeder extends Seeder
+class AvataresSeeder extends Seeder
 {
     public function run(): void
     {

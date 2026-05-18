@@ -6,7 +6,7 @@ use App\Models\Card;
 use App\Models\CardSkill;
 use Illuminate\Database\Seeder;
 
-class CardSeeder extends Seeder
+class CartasSeeder extends Seeder
 {
     public function run(): void
     {

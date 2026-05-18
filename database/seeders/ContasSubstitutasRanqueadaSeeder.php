@@ -15,9 +15,9 @@ use Illuminate\Support\Facades\Hash;
 
 /**
  * Contas internas ranqueadas (substitutos). Nunca listadas no leaderboard.
- * Em produção: `php artisan db:seed --class=RankedSubstituteAccountsSeeder` após migrações.
+ * Em produção: `php artisan db:seed --class=ContasSubstitutasRanqueadaSeeder` após migrações.
  */
-class RankedSubstituteAccountsSeeder extends Seeder
+class ContasSubstitutasRanqueadaSeeder extends Seeder
 {
     public function run(): void
     {

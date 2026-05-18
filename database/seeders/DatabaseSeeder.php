@@ -9,10 +9,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            CardSeeder::class,
-            AvatarSeeder::class,
-            ChestAndWeeklyPoolSeeder::class,
-            RankedSubstituteAccountsSeeder::class,
+            CartasSeeder::class,
+            AvataresSeeder::class,
+            BausPoolsSemanalSeeder::class,
+            ContasSubstitutasRanqueadaSeeder::class,
         ]);
     }
 }

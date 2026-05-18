@@ -15,7 +15,7 @@ use Illuminate\Database\Seeder;
  *
  * Regra de moeda: loja premium (facções, cosméticos, baú premium) = moedas; baú de cristal = cristais.
  */
-class ChestAndWeeklyPoolSeeder extends Seeder
+class BausPoolsSemanalSeeder extends Seeder
 {
     /**
      * @return array<string, array{chest: array<string, mixed>, items: list<array<string, mixed>>}>
@@ -295,7 +295,7 @@ class ChestAndWeeklyPoolSeeder extends Seeder
     }
 
     /**
-     * Baú de cristal: todas as cartas comuns da coleção base (CardSeeder) + 4 raras + 2 épicas.
+     * Baú de cristal: todas as cartas comuns da coleção base (CartasSeeder) + 4 raras + 2 épicas.
      * Sem lendárias. Pesos iguais por linha (1 sorteio = 1 carta).
      *
      * @return list<array{asset_category: string, asset_key: string, display_tier: string, drop_weight: int, sort_order: int}>

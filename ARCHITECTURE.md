@@ -135,7 +135,7 @@ app/
 
 **Config de jogo (sem lógica):** `config/game/chests.php`, `config/game/progression.php`
 
-**Seeders:** `database/seeders/CardSeeder.php` lê `roadmap/cards_seed.json`
+**Seeders:** `database/seeders/CartasSeeder.php`, `AvataresSeeder.php`, `BausPoolsSemanalSeeder.php`, `ContasSubstitutasRanqueadaSeeder.php`, `DevRecargaCarteiraSeeder.php`, `ResetCompletoRanqueadaSeeder.php` (reset manual da ranked)
 
 ---
 
@@ -172,7 +172,7 @@ public function register(array $data): array
 | Entrega Fase A | Arquivos principais |
 |----------------|---------------------|
 | Auth Sanctum | `AuthController`, `RegisterRequest`, `LoginRequest`, `AuthService`, `UserResource` |
-| Seed 30 cartas | `CardSeeder`, models `Card`, `CardSkill` |
+| Seed 30 cartas | `CartasSeeder`, models `Card`, `CardSkill` |
 | Deck inicial | `AuthService` ou `StarterDeckService` |
 | Partida | `MatchController`, `MatchActionService`, `MatchStateService`, `Game/MatchEngine` |
 | Fila | `MatchmakingController`, `MatchmakingService` |
