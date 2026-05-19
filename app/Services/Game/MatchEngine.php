@@ -143,8 +143,6 @@ class MatchEngine
         $id = $unit['instancia_id'];
 
         if ($unit['flags']['escudo'] ?? false) {
-            // Remove o escudo da cópia local E persiste no $estado imediatamente.
-            // Sem o syncUnit aqui o escudo nunca seria consumido.
             unset($unit['flags']['escudo']);
             $this->syncUnit($estado, $slot, $unit);
             $animacoes[] = ['tipo' => 'escudo_quebrado', 'instancia_id' => $id];
@@ -157,10 +155,12 @@ class MatchEngine
             $reducao = 1;
         }
         if ($this->effects->hasPassive($unit['card_id'], 'reducao_dano_acumulativa')) {
-            $unit['reducao_acumulada'] = ($unit['reducao_acumulativa'] ?? 0) + 1;
-            $reducao += $unit['reducao_acumulada'];
+            // FIX: nomenclatura consistente de chave + respeitar máximo de 3
+            $acumulada = min(3, ($unit['reducao_acumulada'] ?? 0) + 1);
+            $unit['reducao_acumulada'] = $acumulada;
+            $reducao += $acumulada;
         }
-        $dmg = max(0, $dmg - $reducao);
+        $dmg = max(1, $dmg - $reducao); // mínimo 1 de dano
 
         $unit['vida_atual'] -= $dmg;
         $animacoes[] = ['tipo' => 'dano', 'instancia_id' => $id, 'valor' => $dmg];
@@ -168,20 +168,21 @@ class MatchEngine
         if ($unit['vida_atual'] <= 0) {
             $this->killUnit($estado, $slot, $id, $animacoes);
         } else {
-            // Persiste a vida reduzida no $estado imediatamente para que
-            // chamadas subsequentes (findUnit, syncUnit, etc.) vejam o valor correto.
             $this->syncUnit($estado, $slot, $unit);
         }
     }
 
-    public function killUnit(array &$estado, int $slot, string $instanciaId, array &$animacoes): void
+    public function killUnit(array &$estado, int $slot, string $instanciaId, array &$animacoes, bool $triggerDeathEffects = true): void
     {
         $unit = $this->findUnit($estado, $slot, $instanciaId);
         if (! $unit) {
             return;
         }
 
-        $this->effects->triggerSkills($estado, $slot, 'ao_morrer', $unit, $animacoes);
+        // FIX: disparar ao_morrer somente se permitido (Aberração do Vazio suprime)
+        if ($triggerDeathEffects) {
+            $this->effects->triggerSkills($estado, $slot, 'ao_morrer', $unit, $animacoes);
+        }
 
         $estado['ultimo_aliado_morto'][(string) $slot] = $unit;
         $estado['campo'][$slot] = array_values(array_filter(
@@ -190,22 +191,43 @@ class MatchEngine
         ));
         $estado['jogadores'][(string) $slot]['cemiterio'][] = $unit['card_id'];
 
+        // Ressurreição única (Aranha de Sucata)
         if ($estado['jogadores'][(string) $slot]['ressurreicao_pendente'] ?? false) {
             $estado['jogadores'][(string) $slot]['ressurreicao_pendente'] = false;
-            $estado['jogadores'][(string) $slot]['ressurreicao_usada'] = true;
-            $revive = $unit;
-            $revive['vida_max'] = CardCatalog::get($unit['card_id'])?->vida ?? 1;
-            $estado['ultimo_aliado_morto'][(string) $slot] = $revive;
+            $estado['jogadores'][(string) $slot]['ressurreicao_usada']    = true;
             if (count($estado['campo'][$slot]) < config('game.match.field.max_units_per_player')) {
-                $this->effects->apply($estado, $slot, $revive, ['tipo' => 'ressurreicao_unica'], $animacoes);
+                // FIX: adiciona diretamente sem re-chamar apply() que setaria o flag novamente
+                $revive = $unit;
+                $revive['instancia_id']          = (string) Str::uuid();
+                $revive['vida_atual']             = 1;
+                $revive['pode_atacar']            = false;
+                $revive['foi_invocado_neste_turno'] = true;
+                $revive['efeitos']                = [];
+                $revive['flags']                  = [];
+                $estado['campo'][$slot][]         = $revive;
+                $animacoes[] = ['tipo' => 'reviver', 'instancia_id' => $revive['instancia_id']];
             }
         }
 
-        foreach ($estado['campo'][$slot] as &$ally) {
-            if ($ally['flags']['crescimento_por_morte'] ?? false) {
-                $ally['bonus_ataque'] = ($ally['bonus_ataque'] ?? 0) + 1;
-                $ally['vida_atual'] += 1;
+        // FIX: crescimento_por_morte notifica AMBOS os lados (Devorador de Estrelas)
+        foreach ([1, 2] as $s) {
+            foreach ($estado['campo'][$s] as &$ally) {
+                if (! ($ally['flags']['crescimento_por_morte'] ?? false)) {
+                    continue;
+                }
+                // Respeitar máximo de +3/+3 acumulados
+                $crescAtk = $ally['crescimento_atk'] ?? 0;
+                $crescHp  = $ally['crescimento_hp'] ?? 0;
+                if ($crescAtk < 3) {
+                    $ally['bonus_ataque'] = ($ally['bonus_ataque'] ?? 0) + 1;
+                    $ally['crescimento_atk'] = $crescAtk + 1;
+                }
+                if ($crescHp < 3) {
+                    $ally['vida_atual'] += 1;
+                    $ally['crescimento_hp'] = $crescHp + 1;
+                }
             }
+            unset($ally);
         }
 
         $animacoes[] = ['tipo' => 'morte', 'instancia_id' => $instanciaId];
@@ -224,37 +246,66 @@ class MatchEngine
 
     public function unitAttack(array &$estado, int $slot, array &$attacker, int $oppSlot, ?array &$defender, array &$animacoes): void
     {
+        // FIX: confusão (Criança do Véu) — 50% de chance de errar o ataque
+        foreach ($attacker['efeitos'] ?? [] as $fx) {
+            if ($fx['tipo'] === 'confusao' && rand(0, 1) === 0) {
+                $animacoes[] = ['tipo' => 'errou', 'instancia_id' => $attacker['instancia_id']];
+                $attacker['pode_atacar'] = false;
+                $this->syncUnit($estado, $slot, $attacker);
+
+                return;
+            }
+        }
+
         $atk = $this->getUnitAttack($estado, $slot, $attacker);
+
         if ($defender) {
             $defAtk = $this->getUnitAttack($estado, $oppSlot, $defender);
 
-            // damageUnit modifica $defender localmente E persiste no $estado (syncUnit interno)
-            $this->damageUnit($estado, $oppSlot, $defender, $atk, $animacoes);
+            // FIX: Executor de Ferro — +2 dano CONTRA unidades com redução de dano
+            if ($this->effects->hasPassive($attacker['card_id'], 'dano_bonus_vs_reducao')) {
+                if ($this->effects->hasPassive($defender['card_id'], 'reducao_dano') ||
+                    $this->effects->hasPassive($defender['card_id'], 'reducao_dano_acumulativa')) {
+                    $atk += 2;
+                }
+            }
 
-            if ($defender['vida_atual'] > 0) {
-                // Contra-ataque (defensor sobreviveu)
+            // Rastrear dano real para lifesteal (Costureira Macabra)
+            $vidaAntes = $defender['vida_atual'];
+            $this->damageUnit($estado, $oppSlot, $defender, $atk, $animacoes);
+            $defRef   = $this->findUnit($estado, $oppSlot, $defender['instancia_id']);
+            $danoReal = $defRef !== null
+                ? max(0, $vidaAntes - $defRef['vida_atual'])
+                : $vidaAntes; // morreu: dano = vida que tinha
+
+            if (($this->findUnit($estado, $oppSlot, $defender['instancia_id'])['vida_atual'] ?? -1) > 0) {
                 $noRetaliation = $this->effects->hasPassive($attacker['card_id'], 'ataque_sem_retaliacao');
-                $silenced = $defender['silenciado'] ?? false;
-                $extra = $this->effects->hasPassive($attacker['card_id'], 'contra_ataque_extra');
+                $silenced      = $defender['silenciado'] ?? false;
+
+                // FIX: contra_ataque_extra pertence ao DEFENSOR (Hidra do Pântano)
+                $defenderAtual = $this->findUnit($estado, $oppSlot, $defender['instancia_id']);
+                $defenderHasExtra = $defenderAtual &&
+                    $this->effects->hasPassive($defenderAtual['card_id'], 'contra_ataque_extra') &&
+                    ! $silenced;
+
                 if (! $noRetaliation && ! $silenced) {
-                    $retaliation = $extra ? $defAtk * 2 : $defAtk;
-                    if ($this->effects->hasPassive($attacker['card_id'], 'dano_bonus_vs_reducao')) {
-                        $retaliation = max($retaliation, $atk);
-                    }
-                    // Busca o atacante direto do $estado (já sincronizado)
+                    $retaliation = $defenderHasExtra ? $defAtk * 2 : $defAtk;
                     $attackerRef = $this->findUnit($estado, $slot, $attacker['instancia_id']);
                     if ($attackerRef) {
                         $this->damageUnit($estado, $slot, $attackerRef, $retaliation, $animacoes);
-                        // Propaga vida atualizada para $attacker (usado em syncUnit do caller)
                         $attacker['vida_atual'] = $attackerRef['vida_atual'];
                     }
                 }
             }
-            // Habilidades de "ao_atacar" (gatilho pós-combate)
-            $this->effects->triggerSkills($estado, $slot, 'ao_atacar', $attacker, $animacoes, ['alvo' => $defender]);
+
+            // Habilidades de "ao_atacar" — passa dano real para lifesteal
+            $this->effects->triggerSkills($estado, $slot, 'ao_atacar', $attacker, $animacoes, [
+                'alvo' => $defender,
+                'dano' => $danoReal,
+            ]);
         }
+
         $attacker['pode_atacar'] = false;
-        // Caller (attackUnit) faz syncUnit do $attacker com pode_atacar=false e vida correta
     }
 
     public function getUnitAttack(array $estado, int $slot, array $unit): int
@@ -262,7 +313,8 @@ class MatchEngine
         $card = CardCatalog::get($unit['card_id']);
         $base = $card?->ataque ?? 0;
         $base += $unit['bonus_ataque'] ?? 0;
-        $base += $this->effects->auraAttackBonus($estado, $slot);
+        // FIX: passa a facção da unidade para respeitar filtro_faccao da Tesla
+        $base += $this->effects->auraAttackBonus($estado, $slot, $card?->faccao);
         $base -= $this->effects->auraEnemyAttackDebuff($estado, $slot);
 
         foreach ($unit['efeitos'] ?? [] as $fx) {
@@ -374,17 +426,28 @@ class MatchEngine
         if (! $unit) {
             throw new InvalidArgumentException('Unidade inválida');
         }
+        if ($unit['silenciado'] ?? false) {
+            throw new InvalidArgumentException('Unidade está silenciada');
+        }
         $card = CardCatalog::get($unit['card_id']);
         foreach ($card?->skills ?? [] as $skill) {
             if ($skill->tipo !== 'ativa') {
                 continue;
             }
+            // FIX: deduzir energia antes de aplicar o efeito
+            $custo = (int) ($skill->efeito['custo_energia'] ?? 0);
+            $player = &$estado['jogadores'][(string) $slot];
+            if ($player['energia_atual'] < $custo) {
+                throw new InvalidArgumentException('Energia insuficiente para usar habilidade');
+            }
+            $player['energia_atual'] -= $custo;
+
             $ctx = ['alvo_instancia_id' => $payload['alvo_instancia_id'] ?? null];
             $opp = $slot === 1 ? 2 : 1;
             $alvo = $ctx['alvo_instancia_id']
                 ? $this->findUnit($estado, $opp, $ctx['alvo_instancia_id'])
                 : null;
-            $ctx['alvo'] = &$alvo;
+            $ctx['alvo'] = $alvo;
             $this->effects->apply($estado, $slot, $unit, $skill->efeito, $animacoes, $ctx);
         }
     }
@@ -434,7 +497,7 @@ class MatchEngine
                 $cardId = array_shift($player['deck']);
                 $player['mao'][] = [
                     'instancia_id' => (string) Str::uuid(),
-                    'card_id' => $cardId,
+                    'card_id'      => $cardId,
                 ];
                 $animacoes[] = ['tipo' => 'comprar', 'player' => $slot];
             }
@@ -446,12 +509,22 @@ class MatchEngine
             config('game.match.energy.start') + ($turno - 1) * config('game.match.energy.gain_per_turn')
         );
         $player['energia_maxima'] = $maxEnergy;
-        $player['energia_atual'] = $maxEnergy + ($player['energia_bonus_turno'] ?? 0);
+        $player['energia_atual']  = $maxEnergy + ($player['energia_bonus_turno'] ?? 0);
         $player['energia_bonus_turno'] = 0;
 
         foreach ($estado['campo'][$slot] as &$u) {
-            $u['pode_atacar'] = true;
+            $u['pode_atacar']            = true;
             $u['foi_invocado_neste_turno'] = false;
+        }
+        unset($u);
+
+        // FIX: disparar habilidades de início de turno (Espírito da Raíz, Núcleo Autômato)
+        $unitIds = array_column($estado['campo'][$slot], 'instancia_id');
+        foreach ($unitIds as $uid) {
+            $u = $this->findUnit($estado, $slot, $uid);
+            if ($u) {
+                $this->effects->triggerSkills($estado, $slot, 'inicio_turno_aliado', $u, $animacoes, []);
+            }
         }
 
         $this->tickPoison($estado, $slot, $animacoes);

@@ -71,8 +71,27 @@ class MatchViewBuilder
             'jogadores'        => $players,
             'meu_campo'        => $this->hydrateField($estado['campo'][$slot], $estado, $slot),
             'campo_inimigo'    => $this->hydrateField($estado['campo'][$opp], $estado, $opp, false),
-            'revelacoes'       => $estado['revelacoes'][(string) $slot] ?? [],
+            'revelacoes'       => $this->hydrateRevelacoes($estado['revelacoes'][(string) $slot] ?? []),
         ];
+    }
+
+    private function hydrateRevelacoes(array $revelacoes): array
+    {
+        return array_map(function ($cardId) {
+            $card = CardCatalog::get($cardId);
+
+            return [
+                'card_id'     => $cardId,
+                'nome'        => $card?->nome,
+                'descricao'   => $card?->descricao,
+                'custo'       => $card?->custo,
+                'ataque'      => $card?->ataque,
+                'vida'        => $card?->vida,
+                'faccao'      => $card?->faccao,
+                'imagem_path' => $card?->imagem_path,
+                'skills'      => array_map(fn ($s) => (array) $s, $card?->skills ?? []),
+            ];
+        }, $revelacoes);
     }
 
     private function hydrateHand(array $mao): array

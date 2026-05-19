@@ -63,44 +63,45 @@ class EffectResolver
     ): void {
         $tipo = $efeito['tipo'] ?? '';
 
-        // Extrair alvos em variáveis antes de qualquer chamada que use referência,
-        // pois expressões como "$context['alvo'] ?? null" não podem ser passadas por referência.
+        // Extrair alvos em variáveis antes de qualquer chamada que use referência.
         $alvo       = $context['alvo'] ?? null;
-        $targetUnit = $unit ?? $alvo;
 
         switch ($tipo) {
             case 'charge':
-                $this->charge($unit, $efeito, $animacoes);
+                $this->charge($estado, $unit, $efeito, $animacoes);
                 break;
             case 'dano_todas_inimigas':
                 $this->damageAllEnemyUnits($estado, $slot, (int) ($efeito['valor'] ?? 0), $animacoes);
                 break;
             case 'debuff_ataque':
-                $this->addEffect($unit, 'debuff_ataque', $efeito, $animacoes);
+                // FIX: aplica no ALVO (defensor), não no atacante
+                $this->addEffect($estado, $alvo, 'debuff_ataque', $efeito, $animacoes);
                 break;
             case 'veneno':
-                $this->addEffect($targetUnit, 'veneno', $efeito, $animacoes);
+                // FIX: aplica no ALVO (defensor), não no atacante
+                $this->addEffect($estado, $alvo, 'veneno', $efeito, $animacoes);
                 break;
             case 'silencio':
-                $this->silence($alvo, $animacoes);
+                $this->silence($estado, $alvo, $animacoes);
                 break;
             case 'cura_aleatorio_aliado':
                 $this->healRandomAlly($estado, $slot, (int) ($efeito['valor'] ?? 1), $animacoes);
                 break;
             case 'cura_por_dano':
-                $this->healPlayer($estado, $slot, (int) ($context['dano'] ?? 0), $animacoes);
+                // FIX: cura a UNIDADE atacante (Costureira), não o jogador
+                $this->healUnitBySelf($estado, $slot, $unit, (int) ($context['dano'] ?? 0), (int) ($efeito['maximo'] ?? 99), $animacoes);
                 break;
             case 'energia_temporaria':
                 $this->bonusEnergy($estado, $slot, (int) ($efeito['valor'] ?? 1), $animacoes);
                 break;
             case 'escudo_primeiro_golpe':
-                $this->addFlag($unit, 'escudo', $animacoes);
+                $this->addFlag($estado, $unit, 'escudo', $animacoes);
                 break;
             case 'nao_pode_atacar':
-                $this->addEffect($alvo, 'nao_pode_atacar', $efeito, $animacoes);
+                $this->addEffect($estado, $alvo, 'nao_pode_atacar', $efeito, $animacoes);
                 break;
             case 'forcar_ataque_a_si':
-                $this->addFlag($unit, 'taunt_self', $animacoes);
+                $this->addFlag($estado, $unit, 'taunt_self', $animacoes);
                 break;
             case 'aura_buff_ataque':   // aplicado em getUnitAttack
             case 'aura_debuff_ataque': // aplicado em getUnitAttack
@@ -115,16 +116,18 @@ class EffectResolver
                 $this->returnAllyToHand($estado, $slot, $context, $animacoes);
                 break;
             case 'destruir_aleatorio_inimigo':
-                $this->destroyRandomEnemy($estado, $slot, $animacoes);
+                // FIX: passa flag para não disparar ao_morrer da vítima (Aberração)
+                $this->destroyRandomEnemy($estado, $slot, $animacoes, (bool) ($efeito['dispara_ao_morrer'] ?? true));
                 break;
             case 'revelar_proxima_carta_deck':
-                $this->revealNext($estado, $slot, $animacoes);
+                // FIX: passa efeito para respeitar quantidade e alvo correto
+                $this->revealNext($estado, $slot, $efeito, $animacoes);
                 break;
             case 'confusao':
-                $this->addEffect($alvo, 'confusao', $efeito, $animacoes);
+                $this->addEffect($estado, $alvo, 'confusao', $efeito, $animacoes);
                 break;
             case 'crescimento_por_morte':
-                $this->addFlag($unit, 'crescimento_por_morte', $animacoes);
+                $this->addFlag($estado, $unit, 'crescimento_por_morte', $animacoes);
                 break;
         }
     }
@@ -144,7 +147,7 @@ class EffectResolver
         return false;
     }
 
-    public function auraAttackBonus(array $estado, int $slot): int
+    public function auraAttackBonus(array $estado, int $slot, ?string $targetFaccao = null): int
     {
         $bonus = 0;
         foreach ($estado['campo'][$slot] as $u) {
@@ -154,6 +157,11 @@ class EffectResolver
             }
             foreach ($card->skills as $skill) {
                 if (($skill->efeito['tipo'] ?? '') === 'aura_buff_ataque') {
+                    // FIX: respeitar filtro_faccao (Tesla só buff mecânicos)
+                    $filtro = $skill->efeito['filtro_faccao'] ?? null;
+                    if ($filtro && $targetFaccao && $filtro !== $targetFaccao) {
+                        continue;
+                    }
                     $bonus += (int) ($skill->efeito['valor'] ?? 0);
                 }
             }
@@ -181,7 +189,22 @@ class EffectResolver
         return $debuff;
     }
 
-    private function charge(?array &$unit, array $efeito, array &$animacoes): void
+    private function syncToState(array &$estado, array $unit): void
+    {
+        if (empty($unit['instancia_id'])) {
+            return;
+        }
+        foreach ([1, 2] as $s) {
+            foreach ($estado['campo'][$s] as $i => $u) {
+                if ($u['instancia_id'] === $unit['instancia_id']) {
+                    $estado['campo'][$s][$i] = $unit;
+                    return;
+                }
+            }
+        }
+    }
+
+    private function charge(array &$estado, ?array &$unit, array $efeito, array &$animacoes): void
     {
         if (! $unit) {
             return;
@@ -191,6 +214,7 @@ class EffectResolver
         $bonus = (int) ($efeito['bonus_ataque'] ?? 0);
         $unit['bonus_ataque'] = ($unit['bonus_ataque'] ?? 0) + $bonus;
         $animacoes[] = ['tipo' => 'charge', 'instancia_id' => $unit['instancia_id']];
+        $this->syncToState($estado, $unit);
     }
 
     private function damageAllEnemyUnits(array &$estado, int $slot, int $dmg, array &$animacoes): void
@@ -201,30 +225,41 @@ class EffectResolver
         }
     }
 
-    private function addEffect(?array &$unit, string $tipo, array $efeito, array &$animacoes): void
+    private function addEffect(array &$estado, ?array &$unit, string $tipo, array $efeito, array &$animacoes): void
     {
         if (! $unit) {
             return;
         }
+        // FIX: unidades imunes a controle ignoram silêncio, nao_pode_atacar e confusao
+        $tiposControle = ['silencio', 'nao_pode_atacar', 'confusao'];
+        if (in_array($tipo, $tiposControle) && $this->hasPassive($unit['card_id'], 'imune_controle')) {
+            return;
+        }
         $unit['efeitos'][] = [
-            'tipo' => $tipo,
-            'valor' => $efeito['valor'] ?? 1,
+            'tipo'    => $tipo,
+            'valor'   => $efeito['valor'] ?? 1,
             'duracao' => $efeito['duracao'] ?? 1,
         ];
-        if ($tipo === 'silencio' || $tipo === 'veneno') {
-            $unit['silenciado'] = $tipo === 'silencio';
+        if ($tipo === 'silencio') {
+            $unit['silenciado'] = true;
         }
         $animacoes[] = ['tipo' => 'efeito', 'instancia_id' => $unit['instancia_id'], 'efeito' => $tipo];
+        $this->syncToState($estado, $unit);
     }
 
-    private function silence(?array &$unit, array &$animacoes): void
+    private function silence(array &$estado, ?array &$unit, array &$animacoes): void
     {
         if (! $unit) {
+            return;
+        }
+        // FIX: respeitar imunidade a controle (Cavaleiro Sem Face)
+        if ($this->hasPassive($unit['card_id'], 'imune_controle')) {
             return;
         }
         $unit['silenciado'] = true;
         $unit['efeitos'][] = ['tipo' => 'silencio', 'duracao' => 1];
         $animacoes[] = ['tipo' => 'silencio', 'instancia_id' => $unit['instancia_id']];
+        $this->syncToState($estado, $unit);
     }
 
     private function healRandomAlly(array &$estado, int $slot, int $amount, array &$animacoes): void
@@ -256,18 +291,22 @@ class EffectResolver
         $animacoes[] = ['tipo' => 'energia', 'player' => $slot, 'valor' => $val];
     }
 
-    private function addFlag(?array &$unit, string $flag, array &$animacoes): void
+    private function addFlag(array &$estado, ?array &$unit, string $flag, array &$animacoes): void
     {
         if (! $unit) {
             return;
         }
         $unit['flags'][$flag] = true;
         $animacoes[] = ['tipo' => 'flag', 'instancia_id' => $unit['instancia_id'], 'flag' => $flag];
+        $this->syncToState($estado, $unit);
     }
 
     private function flagRessurreicao(array &$estado, int $slot): void
     {
-        $estado['jogadores'][(string) $slot]['ressurreicao_pendente'] = true;
+        // FIX: só seta se o limite de 1 uso por partida ainda não foi consumido
+        if (! ($estado['jogadores'][(string) $slot]['ressurreicao_usada'] ?? false)) {
+            $estado['jogadores'][(string) $slot]['ressurreicao_pendente'] = true;
+        }
     }
 
     private function reviveLastAlly(array &$estado, int $slot, array &$animacoes): void
@@ -307,7 +346,7 @@ class EffectResolver
         $animacoes[] = ['tipo' => 'retornar_mao', 'instancia_id' => $targetId];
     }
 
-    private function destroyRandomEnemy(array &$estado, int $slot, array &$animacoes): void
+    private function destroyRandomEnemy(array &$estado, int $slot, array &$animacoes, bool $disparaAoMorrer = true): void
     {
         $opp = $slot === 1 ? 2 : 1;
         if (empty($estado['campo'][$opp])) {
@@ -318,16 +357,58 @@ class EffectResolver
         if ($this->hasPassive($unit['card_id'], 'imune_remocao_direta')) {
             return;
         }
-        $this->engine->killUnit($estado, $opp, $unit['instancia_id'], $animacoes);
+        // FIX: Aberração do Vazio: dispara_ao_morrer=false suprime gatilhos de morte
+        $this->engine->killUnit($estado, $opp, $unit['instancia_id'], $animacoes, $disparaAoMorrer);
     }
 
-    private function revealNext(array &$estado, int $slot, array &$animacoes): void
+    private function revealNext(array &$estado, int $slot, array $efeito, array &$animacoes): void
     {
-        $deck = $estado['jogadores'][(string) $slot]['deck'];
+        // FIX: sempre revela do deck INIMIGO; respeita quantidade (1 para Corvo, 3 para Oráculo)
+        $opp = $slot === 1 ? 2 : 1;
+        $targetSlot = ($efeito['alvo'] ?? '') === 'deck_inimigo' ? $opp : $slot;
+        $quantidade = max(1, (int) ($efeito['quantidade'] ?? 1));
+
+        $deck = $estado['jogadores'][(string) $targetSlot]['deck'];
         if (empty($deck)) {
             return;
         }
-        $estado['revelacoes'][(string) $slot][] = $deck[0];
-        $animacoes[] = ['tipo' => 'revelar', 'player' => $slot, 'card_id' => $deck[0]];
+        $revelados = 0;
+        foreach ($deck as $cardId) {
+            if ($revelados >= $quantidade) {
+                break;
+            }
+            $estado['revelacoes'][(string) $slot][] = $cardId;
+            $animacoes[] = ['tipo' => 'revelar', 'player' => $slot, 'card_id' => $cardId];
+            $revelados++;
+        }
+    }
+
+    /**
+     * Cura a própria unidade (Costureira Macabra: lifesteal).
+     * Respeita o HP máximo da carta e o teto do efeito.
+     */
+    private function healUnitBySelf(array &$estado, int $slot, ?array &$unit, int $dano, int $maximo, array &$animacoes): void
+    {
+        if (! $unit || $dano <= 0) {
+            return;
+        }
+        $heal = min($dano, $maximo);
+        $card = CardCatalog::get($unit['card_id']);
+        $maxHp = $card?->vida ?? 99;
+        $novaVida = min($maxHp, $unit['vida_atual'] + $heal);
+        $healReal = $novaVida - $unit['vida_atual'];
+        if ($healReal <= 0) {
+            return;
+        }
+        $unit['vida_atual'] = $novaVida;
+        // Sincroniza no estado
+        foreach ($estado['campo'][$slot] as &$u) {
+            if ($u['instancia_id'] === $unit['instancia_id']) {
+                $u['vida_atual'] = $novaVida;
+                break;
+            }
+        }
+        unset($u);
+        $animacoes[] = ['tipo' => 'cura', 'instancia_id' => $unit['instancia_id'], 'valor' => $healReal];
     }
 }
