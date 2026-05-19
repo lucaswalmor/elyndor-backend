@@ -101,6 +101,8 @@ class InventoryController extends Controller
                 $c = $cards->get($row->card_id);
 
                 return [
+                    'id' => $row->id,
+                    'stack_key' => $row->stack_key,
                     'kind' => 'card',
                     'quantity' => (int) $row->quantity,
                     'card' => $c ? [
@@ -122,6 +124,8 @@ class InventoryController extends Controller
             }
 
             return [
+                'id' => $row->id,
+                'stack_key' => $row->stack_key,
                 'kind' => 'cosmetic',
                 'quantity' => (int) $row->quantity,
                 'asset_category' => $row->asset_category,
@@ -135,6 +139,79 @@ class InventoryController extends Controller
             'items' => $items,
             'total_stacks' => count($items),
             'total_quantity' => $totalQty,
+        ]);
+    }
+
+    public function disenchantDuplicate(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'stack_key' => ['required', 'string'],
+        ]);
+
+        $userId = (int) $request->user()->id;
+        $stackKey = $data['stack_key'];
+
+        $row = PlayerLootDuplicate::query()
+            ->where('user_id', $userId)
+            ->where('stack_key', $stackKey)
+            ->where('quantity', '>', 0)
+            ->first();
+
+        if (! $row) {
+            return response()->json(['message' => 'Item repetido não encontrado ou já desencantado.'], 404);
+        }
+
+        $user = $request->user();
+        $gainType = '';
+        $gainAmount = 0;
+
+        if ($row->card_id) {
+            $card = Card::query()->find($row->card_id);
+            $raridade = $card?->raridade ?? 'comum';
+
+            // 50% dos valores da loja de cartas (comum: 50, rara: 150, epica: 500, lendaria: 1500)
+            $map = [
+                'comum'    => 25,
+                'rara'     => 75,
+                'epica'    => 250,
+                'lendaria' => 750,
+            ];
+            $gainAmount = $map[$raridade] ?? 25;
+            $gainType = 'cristais';
+
+            $user->cristais = (int) $user->cristais + $gainAmount;
+        } else {
+            // Cosméticos: 30% do valor do baú em moedas
+            $cat = $row->asset_category;
+            $map = [
+                'avatars'     => 330, // 30% de 1100
+                'match_boards'=> 390, // 30% de 1300
+                'card_backs'  => 330, // 30% de 1100
+            ];
+            $gainAmount = $map[$cat] ?? 300;
+            $gainType = 'moedas';
+
+            $user->moedas = (int) $user->moedas + $gainAmount;
+        }
+
+        $row->quantity = (int) $row->quantity - 1;
+        if ($row->quantity <= 0) {
+            $row->delete();
+        } else {
+            $row->save();
+        }
+
+        $user->save();
+
+        return response()->json([
+            'message' => "Desencantado com sucesso! Você recebeu +{$gainAmount} " . ($gainType === 'cristais' ? 'Cristais' : 'Moedas') . ".",
+            'gain_type' => $gainType,
+            'gain_amount' => $gainAmount,
+            'balance' => [
+                'moedas' => $user->moedas,
+                'cristais' => $user->cristais,
+            ],
+            'remaining_quantity' => $row->quantity,
         ]);
     }
 }

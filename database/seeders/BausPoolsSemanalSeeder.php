@@ -377,52 +377,52 @@ class BausPoolsSemanalSeeder extends Seeder
         };
 
         // —— Cartas (raridades = tabela cards) ——
-        $row('card', 'devorador-de-estrelas', 'lendaria');
-        $row('card', 'tita-magmatico', 'epica');
-        $row('card', 'serafim-partido', 'epica');
-        $row('card', 'carniceiro-de-brasas', 'rara');
-        $row('card', 'rei-das-correntes', 'rara');
-        $row('card', 'hidra-do-pantano', 'rara');
-        $row('card', 'cao-vulcanico', 'comum');
-        $row('card', 'bruxa-cinzenta', 'comum');
-        $row('card', 'morcego-igneo', 'comum');
-        $row('card', 'drone-sentinela', 'comum');
+        $row('card', 'devorador-de-estrelas', 'lendaria', 1);
+        $row('card', 'tita-magmatico', 'epica', 3);
+        $row('card', 'serafim-partido', 'epica', 3);
+        $row('card', 'carniceiro-de-brasas', 'rara', 10);
+        $row('card', 'rei-das-correntes', 'rara', 10);
+        $row('card', 'hidra-do-pantano', 'rara', 10);
+        $row('card', 'cao-vulcanico', 'comum', 20);
+        $row('card', 'bruxa-cinzenta', 'comum', 20);
+        $row('card', 'morcego-igneo', 'comum', 20);
+        $row('card', 'drone-sentinela', 'comum', 20);
 
         // —— Versos (tiers para pity / UI; chaves = PNGs em frame_cards/) ——
-        $row('card_back', 'verso_da_carta', 'lendaria');
-        $row('card_back', 'verso_nocthar', 'epica');
-        $row('card_back', 'verso_vulkaris', 'epica');
-        $row('card_back', 'verso_premium_cristal', 'rara');
-        $row('card_back', 'verso_premium_obsidiana', 'rara');
-        $row('card_back', 'verso_comum', 'rara');
-        $row('card_back', 'verso_padrao', 'comum');
-        $row('card_back', 'verso_ferrox', 'comum');
-        $row('card_back', 'verso_sylvaris', 'comum');
-        $row('card_back', 'verso_premium_ouro', 'comum');
+        $row('card_back', 'verso_da_carta', 'lendaria', 1);
+        $row('card_back', 'verso_nocthar', 'epica', 3);
+        $row('card_back', 'verso_vulkaris', 'epica', 3);
+        $row('card_back', 'verso_premium_cristal', 'rara', 10);
+        $row('card_back', 'verso_premium_obsidiana', 'rara', 10);
+        $row('card_back', 'verso_comum', 'rara', 10);
+        $row('card_back', 'verso_padrao', 'comum', 20);
+        $row('card_back', 'verso_ferrox', 'comum', 20);
+        $row('card_back', 'verso_sylvaris', 'comum', 20);
+        $row('card_back', 'verso_premium_ouro', 'comum', 20);
 
         // —— Fundos de perfil ——
-        $row('profile_bg', 'ui_bg_profile_obsidian', 'lendaria');
-        $row('profile_bg', 'ui_bg_profile_heaven', 'epica');
-        $row('profile_bg', 'ui_bg_profile_jade', 'epica');
-        $row('profile_bg', 'ui_bg_profile_celestial', 'rara');
-        $row('profile_bg', 'ui_bg_profile_crystal', 'rara');
-        $row('profile_bg', 'ui_bg_profile_gold', 'rara');
-        $row('profile_bg', 'ui_bg_profile_infernal', 'comum');
-        $row('profile_bg', 'ui_bg_profile_nature', 'comum');
-        $row('profile_bg', 'ui_bg_profile_mechanics', 'comum');
-        $row('profile_bg', 'ui_bg_profile_undead', 'comum');
+        $row('profile_bg', 'ui_bg_profile_obsidian', 'lendaria', 1);
+        $row('profile_bg', 'ui_bg_profile_heaven', 'epica', 3);
+        $row('profile_bg', 'ui_bg_profile_jade', 'epica', 3);
+        $row('profile_bg', 'ui_bg_profile_celestial', 'rara', 10);
+        $row('profile_bg', 'ui_bg_profile_crystal', 'rara', 10);
+        $row('profile_bg', 'ui_bg_profile_gold', 'rara', 10);
+        $row('profile_bg', 'ui_bg_profile_infernal', 'comum', 20);
+        $row('profile_bg', 'ui_bg_profile_nature', 'comum', 20);
+        $row('profile_bg', 'ui_bg_profile_mechanics', 'comum', 20);
+        $row('profile_bg', 'ui_bg_profile_undead', 'comum', 20);
 
         // —— Tabuleiros ——
-        $row('match_board', 'tabuleiro_astra_veil', 'lendaria');
-        $row('match_board', 'tabuleiro_premium_obsidiana', 'epica');
-        $row('match_board', 'tabuleiro_premium_ouro', 'epica');
-        $row('match_board', 'tabuleiro_premium_cristal', 'rara');
-        $row('match_board', 'tabuleiro_premium_jade', 'rara');
-        $row('match_board', 'tabuleiro_vulkaris', 'rara');
-        $row('match_board', 'tabuleiro_ferrox', 'comum');
-        $row('match_board', 'tabuleiro_sylvaris', 'comum');
-        $row('match_board', 'tabuleiro_nocthar', 'comum');
-        $row('match_board', 'tabuleiro_padrao_v2', 'comum');
+        $row('match_board', 'tabuleiro_astra_veil', 'lendaria', 1);
+        $row('match_board', 'tabuleiro_premium_obsidiana', 'epica', 3);
+        $row('match_board', 'tabuleiro_premium_ouro', 'epica', 3);
+        $row('match_board', 'tabuleiro_premium_cristal', 'rara', 10);
+        $row('match_board', 'tabuleiro_premium_jade', 'rara', 10);
+        $row('match_board', 'tabuleiro_vulkaris', 'rara', 10);
+        $row('match_board', 'tabuleiro_ferrox', 'comum', 20);
+        $row('match_board', 'tabuleiro_sylvaris', 'comum', 20);
+        $row('match_board', 'tabuleiro_nocthar', 'comum', 20);
+        $row('match_board', 'tabuleiro_padrao_v2', 'comum', 20);
 
         return $rows;
     }
