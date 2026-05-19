@@ -9,26 +9,44 @@ use Illuminate\Database\Seeder;
  * Testes locais: atualiza moedas e/ou cristais por ID de utilizador.
  *
  * .env (exemplo):
- *   DEV_TOPUP_USER_IDS=1,2
+ *   DEV_TOPUP_USER_IDS=1,2  (Deixe vazio para dar crédito a TODOS os jogadores)
  *   DEV_TOPUP_MOEDAS=1000000
  *   DEV_TOPUP_CRISTAIS=1000000
  *
  * Regras:
- * - IDs: lista separada por vírgula. Por omissão no código: 1 e 2.
- * - Se DEV_TOPUP_MOEDAS e DEV_TOPUP_CRISTAIS vierem ambos vazios/ausentes → usa 1_000_000 em cada.
- * - Se só definires uma das duas → atualiza só essa coluna (a outra mantém-se).
+ * - Se a variável DEV_TOPUP_USER_IDS estiver vazia ou ausente, a recarga será aplicada a TODOS os utilizadores.
+ * - Os montantes nunca ultrapassam 1.000.000 (predefinido). Se passado um valor maior, será limitado a 1.000.000.
  */
 class DevRecargaCarteiraSeeder extends Seeder
 {
     private const DEFAULT_EACH = 1_000_000;
+    private const MAX_CAP = 1_000_000;
 
     public function run(): void
     {
-        $ids = $this->parseUserIds(env('DEV_TOPUP_USER_IDS', '1,2'));
-        if ($ids === []) {
-            $this->command?->warn('Nenhum ID válido em DEV_TOPUP_USER_IDS.');
-
-            return;
+        $rawIds = env('DEV_TOPUP_USER_IDS', '');
+        
+        if ($this->isBlankEnv($rawIds)) {
+            $found = User::query()->pluck('id')->all();
+            if ($found === []) {
+                $this->command?->warn('Nenhum jogador cadastrado no banco.');
+                return;
+            }
+            $this->command?->info('DEV_TOPUP_USER_IDS vazio: Aplicando recarga para TODOS os jogadores ('.count($found).' encontrados).');
+        } else {
+            $ids = $this->parseUserIds($rawIds);
+            if ($ids === []) {
+                $this->command?->warn('Nenhum ID válido em DEV_TOPUP_USER_IDS.');
+                return;
+            }
+            $found = User::query()->whereIn('id', $ids)->pluck('id')->all();
+            $missing = array_values(array_diff($ids, $found));
+            if ($missing !== []) {
+                $this->command?->warn('IDs inexistentes: '.implode(', ', $missing));
+            }
+            if ($found === []) {
+                return;
+            }
         }
 
         $moedasRaw = env('DEV_TOPUP_MOEDAS');
@@ -46,26 +64,16 @@ class DevRecargaCarteiraSeeder extends Seeder
                 $this->command?->info('Montantes em branco: usando '.number_format(self::DEFAULT_EACH, 0, ',', '.').' em moedas e em cristais.');
             } else {
                 $this->command?->warn('Um dos montantes parece inválido; usa apenas dígitos ou deixa as duas chaves vazias para o padrão.');
-
                 return;
             }
         }
 
         $payload = [];
         if ($moedas !== null) {
-            $payload['moedas'] = $moedas;
+            $payload['moedas'] = min($moedas, self::MAX_CAP);
         }
         if ($cristais !== null) {
-            $payload['cristais'] = $cristais;
-        }
-
-        $found = User::query()->whereIn('id', $ids)->pluck('id')->all();
-        $missing = array_values(array_diff($ids, $found));
-        if ($missing !== []) {
-            $this->command?->warn('IDs inexistentes: '.implode(', ', $missing));
-        }
-        if ($found === []) {
-            return;
+            $payload['cristais'] = min($cristais, self::MAX_CAP);
         }
 
         $affected = User::query()->whereIn('id', $found)->update($payload);
@@ -78,7 +86,7 @@ class DevRecargaCarteiraSeeder extends Seeder
             $parts[] = 'cristais '.number_format($payload['cristais'], 0, ',', '.');
         }
 
-        $this->command?->info('IDs: '.implode(', ', $found)." · {$affected} linha(s) · ".implode(' · ', $parts));
+        $this->command?->info('IDs afetados: '.count($found)." · {$affected} linha(s) atualizada(s) · ".implode(' · ', $parts));
     }
 
     /** @return list<int> */
