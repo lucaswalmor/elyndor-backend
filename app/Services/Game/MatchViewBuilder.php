@@ -46,6 +46,7 @@ class MatchViewBuilder
                 'cartas_no_deck'    => count($p['deck']),
                 'card_back_slug'    => $mp?->user?->card_back_slug ?? 'padrao',
                 'match_board_slug'  => $mp?->user?->match_board_slug ?? 'padrao',
+                'avatar_image_file' => $mp?->user?->avatar?->image_file,
             ];
 
             if ($s === $slot) {
@@ -68,8 +69,8 @@ class MatchViewBuilder
             'meu_player_id'    => $slot,
             'turno_deadline_em'=> $match->turno_deadline_em?->toIso8601String(),
             'jogadores'        => $players,
-            'meu_campo'        => $this->hydrateField($estado['campo'][$slot]),
-            'campo_inimigo'    => $this->hydrateField($estado['campo'][$opp], false),
+            'meu_campo'        => $this->hydrateField($estado['campo'][$slot], $estado, $slot),
+            'campo_inimigo'    => $this->hydrateField($estado['campo'][$opp], $estado, $opp, false),
             'revelacoes'       => $estado['revelacoes'][(string) $slot] ?? [],
         ];
     }
@@ -92,11 +93,13 @@ class MatchViewBuilder
         }, $mao);
     }
 
-    private function hydrateField(array $units, bool $full = true): array
+    private function hydrateField(array $units, array $estado, int $slot, bool $full = true): array
     {
-        return array_map(function ($u) use ($full) {
+        $engine = app(MatchEngine::class);
+
+        return array_map(function ($u) use ($engine, $estado, $slot, $full) {
             $card = CardCatalog::get($u['card_id']);
-            $atk  = ($card?->ataque ?? 0) + ($u['bonus_ataque'] ?? 0);
+            $atk  = $engine->getUnitAttack($estado, $slot, $u);
 
             // Informações da carta são sempre públicas no campo (visible to both players)
             $row = [

@@ -62,6 +62,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/decks/{id}', [DeckController::class, 'destroy']);
 
         Route::post('/matchmaking/join', [MatchmakingController::class, 'join']);
+        Route::post('/matchmaking/challenge/{user}', [MatchmakingController::class, 'challenge']);
         Route::delete('/matchmaking/leave', [MatchmakingController::class, 'leave']);
         Route::get('/matchmaking/status', [MatchmakingController::class, 'status']);
         Route::post('/matchmaking/matches/{match}/accept', [MatchmakingController::class, 'accept']);

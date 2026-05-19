@@ -22,7 +22,7 @@ class MatchController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $match = GameMatch::with('players.user')->findOrFail($id);
+        $match = GameMatch::with('players.user.avatar')->findOrFail($id);
         $this->authorizeMatch($match, $request->user()->id);
         $view = $this->viewBuilder->forUser($match, $request->user());
 
@@ -31,7 +31,7 @@ class MatchController extends Controller
 
     public function action(Request $request, int $id): JsonResponse
     {
-        $match = GameMatch::with('players.user')->findOrFail($id);
+        $match = GameMatch::with('players.user.avatar')->findOrFail($id);
         $this->authorizeMatch($match, $request->user()->id);
 
         try {
@@ -52,7 +52,7 @@ class MatchController extends Controller
 
     public function reconnect(Request $request, int $id): JsonResponse
     {
-        $match = GameMatch::with('players.user')->findOrFail($id);
+        $match = GameMatch::with('players.user.avatar')->findOrFail($id);
         $this->authorizeMatch($match, $request->user()->id);
 
         return response()->json([
@@ -72,7 +72,7 @@ class MatchController extends Controller
         $userId = $request->user()->id;
         $motivo = $isAbandon ? 'abandon' : 'render';
 
-        $match = GameMatch::with('players.user')->findOrFail($id);
+        $match = GameMatch::with('players.user.avatar')->findOrFail($id);
         $this->authorizeMatch($match, $userId);
 
         if ($match->status !== MatchStatus::EmAndamento) {

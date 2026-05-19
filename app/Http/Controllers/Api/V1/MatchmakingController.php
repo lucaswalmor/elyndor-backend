@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\GameMatch;
+use App\Models\User;
 use App\Services\Auth\UserSessionTracker;
 use App\Services\Match\MatchmakingService;
 use Illuminate\Http\JsonResponse;
@@ -39,6 +40,23 @@ class MatchmakingController extends Controller
                         'client_type' => $request->input('client_type'),
                     ]
                 )
+            );
+        } catch (InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        }
+    }
+
+    public function challenge(Request $request, User $user): JsonResponse
+    {
+        $request->validate([
+            'deck_id' => 'required|integer',
+        ]);
+
+        try {
+            $this->sessions->touch($request, $request->user());
+
+            return response()->json(
+                $this->matchmaking->challenge($request->user(), $user, (int) $request->deck_id)
             );
         } catch (InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 400);

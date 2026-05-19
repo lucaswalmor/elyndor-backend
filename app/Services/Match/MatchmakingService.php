@@ -118,6 +118,58 @@ class MatchmakingService
         ];
     }
 
+    public function challenge(User $challenger, User $opponent, int $deckId): array
+    {
+        $this->deckService->assertPlayable($challenger, $deckId);
+
+        $this->expireAnyStalePendingMatchForUser($challenger);
+        $this->expireAnyStalePendingMatchForUser($opponent);
+
+        $existingInProgress = MatchPlayer::where('user_id', $challenger->id)
+            ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::EmAndamento->value))
+            ->latest()
+            ->first();
+
+        if ($existingInProgress) {
+            return ['status' => 'em_partida', 'match_id' => $existingInProgress->match_id];
+        }
+
+        MatchmakingQueue::whereIn('user_id', [$challenger->id, $opponent->id])->delete();
+
+        $oppDeck = $opponent->decks()->first()?->id ?? 1;
+
+        $seconds = (int) config('game.match.accept_offer_seconds', 15);
+
+        $match = GameMatch::create([
+            'modo' => 'desafio',
+            'status' => MatchStatus::Aguardando,
+            'accept_deadline_at' => now()->addSeconds($seconds),
+        ]);
+
+        MatchPlayer::create([
+            'match_id' => $match->id,
+            'user_id' => $challenger->id,
+            'deck_id' => $deckId,
+            'player_slot' => 1,
+        ]);
+        MatchPlayer::create([
+            'match_id' => $match->id,
+            'user_id' => $opponent->id,
+            'deck_id' => $oppDeck,
+            'player_slot' => 2,
+        ]);
+
+        $match->load('players.user');
+
+        broadcast(new MatchFound($match->fresh(), $opponent, $challenger));
+        broadcast(new MatchFound($match->fresh(), $challenger, $opponent));
+
+        return array_merge(
+            ['status' => 'partida_encontrada', 'match_id' => $match->id],
+            $this->matchAcceptMetaForUser($match, $challenger)
+        );
+    }
+
     public function leave(User $user): void
     {
         MatchmakingQueue::where('user_id', $user->id)->delete();
