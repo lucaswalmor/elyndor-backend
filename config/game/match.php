@@ -9,20 +9,20 @@ return [
     'accept_offer_seconds' => (int) env('MATCH_ACCEPT_OFFER_SECONDS', 15),
 
     'turn_timer' => [
-        'base_seconds' => 20,
-        'increment_per_turn' => 5,
-        'max_seconds' => 90,
+        'base_seconds' => 40,
+        'increment_per_turn' => 0,
+        'max_seconds' => 40,
         'auto_end_turn_on_timeout' => true,
     ],
 
     'field' => [
         'max_units_per_player' => 5,
-        'max_hand_size' => 3,
+        'max_hand_size' => 7,
         'deck_size' => 15,
     ],
 
     'energy' => [
-        'start' => 3,
+        'start' => 2,
         'max' => 10,
         'gain_per_turn' => 1,
     ],

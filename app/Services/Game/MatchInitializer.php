@@ -19,8 +19,8 @@ class MatchInitializer
         shuffle($deck1);
         shuffle($deck2);
 
-        $hand1 = $this->draw($deck1, 3);
-        $hand2 = $this->draw($deck2, 4);
+        $hand1 = $this->draw($deck1, 4);
+        $hand2 = $this->draw($deck2, 5);
 
         $estado = [
             'turno' => 1,
