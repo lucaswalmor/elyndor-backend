@@ -123,15 +123,13 @@ return [
             'handler' => NullHandler::class,
         ],
 
-        /** Playtest balanceamento ranqueado + economia (Fase F) — também em storage/logs/game-balance-*.log */
         'game_balance' => [
-            'driver' => 'daily',
+            'driver' => 'single',
             'path' => storage_path('logs/game-balance.log'),
             'level' => env('LOG_GAME_BALANCE_LEVEL', 'info'),
-            'days' => 21,
             'replace_placeholders' => true,
         ],
-
+        
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],
