@@ -513,7 +513,14 @@ class MatchEngine
         $player['energia_bonus_turno'] = 0;
 
         foreach ($estado['campo'][$slot] as &$u) {
-            $u['pode_atacar']            = true;
+            $hasCantAttack = false;
+            foreach ($u['efeitos'] ?? [] as $fx) {
+                if (($fx['tipo'] ?? '') === 'nao_pode_atacar') {
+                    $hasCantAttack = true;
+                    break;
+                }
+            }
+            $u['pode_atacar']            = ! $hasCantAttack;
             $u['foi_invocado_neste_turno'] = false;
         }
         unset($u);
