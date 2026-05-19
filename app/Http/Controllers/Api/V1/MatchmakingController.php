@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\GameMatch;
 use App\Models\User;
 use App\Services\Auth\UserSessionTracker;
+use App\Services\Client\VersaoClienteDesktopService;
 use App\Services\Match\MatchmakingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ class MatchmakingController extends Controller
     public function __construct(
         private MatchmakingService $matchmaking,
         private UserSessionTracker $sessions,
+        private VersaoClienteDesktopService $versoesDesktop,
     ) {}
 
     public function join(Request $request): JsonResponse
@@ -28,6 +30,7 @@ class MatchmakingController extends Controller
         ]);
 
         try {
+            $this->versoesDesktop->assertCompativel($request);
             $this->sessions->touch($request, $request->user());
 
             return response()->json(
@@ -53,6 +56,7 @@ class MatchmakingController extends Controller
         ]);
 
         try {
+            $this->versoesDesktop->assertCompativel($request);
             $this->sessions->touch($request, $request->user());
 
             return response()->json(

@@ -9,8 +9,10 @@ use App\Http\Controllers\Api\V1\EconomyController;
 use App\Http\Controllers\Api\V1\FriendshipController;
 use App\Http\Controllers\Api\V1\InAppNotificationController;
 use App\Http\Controllers\Api\V1\InventoryController;
+use App\Http\Controllers\Api\V1\InternalVersaoDesktopController;
 use App\Http\Controllers\Api\V1\MatchController;
 use App\Http\Controllers\Api\V1\MatchmakingController;
+use App\Http\Controllers\Api\V1\MetaController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SocialSummaryController;
 use App\Http\Controllers\Api\V1\ShopController;
@@ -25,6 +27,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 
     Route::get('/stats/online-players', [StatsController::class, 'onlinePlayers']);
+
+    Route::get('/meta/versao-desktop', [MetaController::class, 'versaoDesktop']);
+
+    Route::post('/internal/versao-desktop', [InternalVersaoDesktopController::class, 'store'])
+        ->middleware('deploy.token');
 
     Route::get('/avatars/starters', [ProfileController::class, 'starters']);
     Route::get('/ranked/divisions', [ProfileController::class, 'rankedDivisionOptions']);

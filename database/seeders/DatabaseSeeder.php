@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             AvataresSeeder::class,
             BausPoolsSemanalSeeder::class,
             ContasSubstitutasRanqueadaSeeder::class,
+            ProjectVersionSeeder::class,
         ]);
     }
 }
