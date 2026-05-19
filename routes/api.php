@@ -75,6 +75,8 @@ Route::prefix('v1')->group(function () {
         // surrender = render voluntário | abandon = fechou a aba (mesmo resultado)
         Route::post('/matches/{id}/surrender', [MatchController::class, 'surrender']);
         Route::post('/matches/{id}/abandon', [MatchController::class, 'surrender']);
+        Route::post('/matches/{id}/chat', [MatchController::class, 'chat']);
+        Route::post('/matches/{id}/report', [MatchController::class, 'report']);
 
         Route::get('/social/summary', SocialSummaryController::class);
 

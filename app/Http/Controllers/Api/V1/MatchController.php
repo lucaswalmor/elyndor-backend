@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\MatchStatus;
 use App\Events\MatchFinished;
+use App\Events\MatchMessage;
 use App\Http\Controllers\Controller;
 use App\Models\GameMatch;
 use App\Services\Game\MatchEngine;
@@ -107,6 +108,54 @@ class MatchController extends Controller
         });
 
         return response()->json(['sucesso' => true, 'motivo' => $motivo]);
+    }
+
+    public function chat(Request $request, int $id): JsonResponse
+    {
+        $match = GameMatch::with('players.user.avatar')->findOrFail($id);
+        $user = $request->user();
+        $this->authorizeMatch($match, $user->id);
+
+        if ($user->chat_banned_until && $user->chat_banned_until->isFuture()) {
+            return response()->json([
+                'message' => 'Seu chat foi suspenso por violação das regras da comunidade até ' . $user->chat_banned_until->format('d/m/Y H:i')
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'texto' => 'required|string|max:150',
+        ]);
+
+        $time = now()->format('H:i');
+
+        defer(function () use ($match, $user, $validated, $time) {
+            broadcast(new MatchMessage($match, $user->id, $validated['texto'], $time))->toOthers();
+        });
+
+        return response()->json(['sucesso' => true, 'time' => $time]);
+    }
+
+    public function report(Request $request, int $id): JsonResponse
+    {
+        $match = GameMatch::with('players.user.avatar')->findOrFail($id);
+        $user = $request->user();
+        $this->authorizeMatch($match, $user->id);
+
+        $validated = $request->validate([
+            'reported_id' => 'required|integer',
+            'reason' => 'required|string',
+            'details' => 'nullable|string|max:300',
+        ]);
+
+        \Illuminate\Support\Facades\Log::info('Player Report submitted', [
+            'match_id' => $match->id,
+            'reporter_id' => $user->id,
+            'reported_id' => $validated['reported_id'],
+            'reason' => $validated['reason'],
+            'details' => $validated['details'] ?? '',
+        ]);
+
+        return response()->json(['sucesso' => true]);
     }
 
     private function authorizeMatch(GameMatch $match, int $userId): void
