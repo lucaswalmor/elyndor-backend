@@ -11,6 +11,7 @@ use App\Models\MatchmakingQueue;
 use App\Models\MatchPlayer;
 use App\Models\User;
 use App\Services\AntiAbuse\AntiAbuseService;
+use App\Services\Bot\CasualSubstitutePairingService;
 use App\Services\Bot\RankedSubstitutePairingService;
 use App\Services\Deck\DeckService;
 use App\Services\Game\MatchInitializer;
@@ -27,6 +28,7 @@ class MatchmakingService
         private RankedService $ranked,
         private AntiAbuseService $antiAbuse,
         private RankedSubstitutePairingService $rankedSubstitutes,
+        private CasualSubstitutePairingService $casualSubstitutes,
     ) {}
 
     /**
@@ -100,7 +102,7 @@ class MatchmakingService
 
         $paired = $modo === 'ranqueada'
             ? ($this->tryPairRanked() ?: $this->rankedSubstitutes->maybePairStaleSoloHumans())
-            : $this->tryPairNormal();
+            : ($this->tryPairNormal() ?: $this->casualSubstitutes->maybePairStaleSoloHuman());
 
         if ($paired) {
             $match = GameMatch::with('players.user')->findOrFail($paired);
@@ -209,7 +211,7 @@ class MatchmakingService
 
         $paired = $entry->modo === 'ranqueada'
             ? ($this->tryPairRanked() ?: $this->rankedSubstitutes->maybePairStaleSoloHumans())
-            : $this->tryPairNormal();
+            : ($this->tryPairNormal() ?: $this->casualSubstitutes->maybePairStaleSoloHuman());
         if ($paired) {
             $match = GameMatch::with('players.user')->findOrFail($paired);
 
@@ -315,11 +317,11 @@ class MatchmakingService
     public function tryPairNormal(): ?int
     {
         $waiting = MatchmakingQueue::where('modo', 'normal')->orderBy('entrou_na_fila_em')->limit(2)->get();
-        if ($waiting->count() < 2) {
-            return null;
+        if ($waiting->count() >= 2) {
+            return $this->createMatchFromQueue($waiting[0], $waiting[1], 'normal');
         }
 
-        return $this->createMatchFromQueue($waiting[0], $waiting[1], 'normal');
+        return null;
     }
 
     public function tryPairRanked(): ?int

@@ -5,21 +5,21 @@ namespace App\Jobs;
 use App\Enums\MatchStatus;
 use App\Models\GameMatch;
 use App\Models\User;
-use App\Services\Bot\RankedSubstituteBrain;
+use App\Services\Bot\SubstituteBrain;
 use App\Services\Game\MatchEngine;
 use App\Services\Logging\GameBalanceMatchTelemetry;
 use Illuminate\Bus\Queueable;
 use Illuminate\Foundation\Bus\Dispatchable;
 use InvalidArgumentException;
 
-final class PlayRankedBotTurnJob
+final class PlaySubstituteBotTurnJob
 {
     use Dispatchable;
     use Queueable;
 
     public function __construct(public int $matchId) {}
 
-    public function handle(MatchEngine $engine, RankedSubstituteBrain $brain): void
+    public function handle(MatchEngine $engine, SubstituteBrain $brain): void
     {
         if (! config('game.bots.enabled')) {
             return;
@@ -55,10 +55,10 @@ final class PlayRankedBotTurnJob
 
             try {
                 $engine->processAction($match, $botUser, $payload);
-            } catch (\Throwable $e1) {
+            } catch (\Throwable $exception) {
                 $match->refresh();
-                if ($e1 instanceof InvalidArgumentException) {
-                    GameBalanceMatchTelemetry::actionRejected($match, $botUser->id, $payload, $e1->getMessage());
+                if ($exception instanceof InvalidArgumentException) {
+                    GameBalanceMatchTelemetry::actionRejected($match, $botUser->id, $payload, $exception->getMessage());
                 }
                 if (($payload['acao'] ?? '') === 'finalizar_turno') {
                     return;

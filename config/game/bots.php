@@ -24,8 +24,8 @@ return [
   'difficulties' => [
     'casual' => [
       'slug' => 'casual',
-      'aggression' => 0.4,
-      'mistake_chance' => 0.15,
+      'aggression' => 0.58,
+      'mistake_chance' => 0.06,
     ],
     'ranked' => [
       'ferro' => ['aggression' => 0.35, 'mistake_chance' => 0.12],

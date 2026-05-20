@@ -9,7 +9,7 @@ use App\Events\TurnChanged;
 use App\Models\GameMatch;
 use App\Models\MatchLog;
 use App\Models\User;
-use App\Services\Bot\RankedBotTurnDispatcher;
+use App\Services\Bot\SubstituteBotTurnDispatcher;
 use App\Services\Logging\GameBalanceMatchTelemetry;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -518,7 +518,7 @@ class MatchEngine
         // Broadcast deferido: executado APÓS a resposta ser enviada ao cliente
         defer(function () use ($match, $next, $timeout) {
             broadcast(new TurnChanged($match, $next, $timeout))->toOthers();
-            app(RankedBotTurnDispatcher::class)->notify($match->id, $next);
+            app(SubstituteBotTurnDispatcher::class)->notify($match->id, $next);
         });
     }
 
