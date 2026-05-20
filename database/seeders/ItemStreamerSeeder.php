@@ -28,16 +28,16 @@ class ItemStreamerSeeder extends Seeder
      * }>
      */
     private const CONCESSOES = [
-        // [
-        //     'user_id' => 0,
-        //     'rotulo' => 'BoomerangBR',
-        //     'verso' => 'versor_boomerangbr',
-        //     'tabuleiro' => null,
-        // ],
+        [
+            'user_id' => 1,
+            'rotulo' => 'BoomerangBR',
+            'verso' => 'versor_boomerangbr',
+            'tabuleiro' => null,
+        ],
         // Exemplo com verso + tabuleiro:
         [
             'user_id' => 1,
-            'rotulo' => 'OutroCriador',
+            'rotulo' => 'Brasil Copa 2026',
             'verso' => 'verso_brasil_copa_2026',
             'tabuleiro' => 'tabuleiro_brasil_copa_2026',
         ],
