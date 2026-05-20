@@ -389,6 +389,7 @@ class BausPoolsSemanalSeeder extends Seeder
         $row('card', 'drone-sentinela', 'comum', 20);
 
         // —— Versos (tiers para pity / UI; chaves = PNGs em frame_cards/) ——
+        $row('card_back', 'verso_brasil_copa_2026', 'lendaria', 1);
         $row('card_back', 'verso_da_carta', 'lendaria', 1);
         $row('card_back', 'verso_nocthar', 'epica', 3);
         $row('card_back', 'verso_vulkaris', 'epica', 3);
@@ -413,6 +414,7 @@ class BausPoolsSemanalSeeder extends Seeder
         $row('profile_bg', 'ui_bg_profile_undead', 'comum', 20);
 
         // —— Tabuleiros ——
+        $row('match_board', 'tabuleiro_brasil_copa_2026', 'lendaria', 1);
         $row('match_board', 'tabuleiro_astra_veil', 'lendaria', 1);
         $row('match_board', 'tabuleiro_premium_obsidiana', 'epica', 3);
         $row('match_board', 'tabuleiro_premium_ouro', 'epica', 3);

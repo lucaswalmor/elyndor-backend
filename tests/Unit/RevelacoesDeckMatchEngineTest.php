@@ -15,7 +15,7 @@ class RevelacoesDeckMatchEngineTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_revelacoes_somem_ao_finalizar_turno_de_quem_viu(): void
+    public function test_revelacoes_persistem_apos_finalizar_turno_enquanto_timer_ativo(): void
     {
         $cartaRevelada = Card::query()->create([
             'nome' => 'Carta Topo',
@@ -36,6 +36,10 @@ class RevelacoesDeckMatchEngineTest extends TestCase
             'revelacoes' => [
                 '1' => [$cartaRevelada->id],
                 '2' => [],
+            ],
+            'revelacoes_expira_em' => [
+                '1' => now()->addSeconds(60)->toIso8601String(),
+                '2' => null,
             ],
             'jogadores' => [
                 '1' => [
@@ -90,7 +94,42 @@ class RevelacoesDeckMatchEngineTest extends TestCase
         $partida->refresh();
         $estado = $partida->estado;
 
-        $this->assertSame([], $estado['revelacoes']['1'] ?? null);
+        $this->assertSame([$cartaRevelada->id], $estado['revelacoes']['1'] ?? []);
+        $this->assertNotEmpty($estado['revelacoes_expira_em']['1'] ?? null);
         $this->assertSame(2, (int) $estado['jogador_da_vez']);
+    }
+
+    public function test_revelacoes_somem_quando_timer_expira(): void
+    {
+        $cartaRevelada = Card::query()->create([
+            'nome' => 'Carta Expirada',
+            'slug' => 'carta-expirada-teste',
+            'faccao' => 'natureza',
+            'raridade' => 'comum',
+            'custo' => 1,
+            'ataque' => 1,
+            'vida' => 1,
+        ]);
+
+        $estado = [
+            'turno' => 2,
+            'jogador_da_vez' => 1,
+            'revelacoes' => ['1' => [$cartaRevelada->id], '2' => []],
+            'revelacoes_expira_em' => [
+                '1' => now()->subSecond()->toIso8601String(),
+                '2' => null,
+            ],
+            'jogadores' => [
+                '1' => ['user_id' => 1, 'vida' => 20, 'energia_atual' => 5, 'energia_maxima' => 8, 'deck' => [], 'mao' => [], 'cemiterio' => []],
+                '2' => ['user_id' => 2, 'vida' => 20, 'energia_atual' => 5, 'energia_maxima' => 8, 'deck' => [], 'mao' => [], 'cemiterio' => []],
+            ],
+            'campo' => ['1' => [], '2' => []],
+        ];
+
+        $motor = app(MatchEngine::class);
+        $motor->purgeExpiredRevelacoes($estado);
+
+        $this->assertSame([], $estado['revelacoes']['1']);
+        $this->assertNull($estado['revelacoes_expira_em']['1']);
     }
 }

@@ -422,6 +422,11 @@ class EffectResolver
         if (empty($deck)) {
             return;
         }
+
+        $estado['revelacoes'][(string) $slot] = [];
+        $segundos = (int) config('game.match.revelacoes_duration_seconds', 60);
+        $estado['revelacoes_expira_em'][(string) $slot] = now()->addSeconds($segundos)->toIso8601String();
+
         $revelados = 0;
         foreach ($deck as $cardId) {
             if ($revelados >= $quantidade) {

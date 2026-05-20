@@ -32,6 +32,7 @@ class MatchInitializer
             'campo' => ['1' => [], '2' => []],
             'ultimo_aliado_morto' => ['1' => null, '2' => null],
             'revelacoes' => ['1' => [], '2' => []],
+            'revelacoes_expira_em' => ['1' => null, '2' => null],
         ];
 
         $match->update([

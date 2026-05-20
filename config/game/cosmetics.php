@@ -24,6 +24,8 @@ return [
             'verso_premium_jade' => 'Premium jade',
             'verso_premium_obsidiana' => 'Premium obsidiana',
             'verso_premium_ouro' => 'Premium ouro',
+            'verso_beta_tester' => 'Beta Tester',
+            'verso_brasil_copa_2026' => 'Brasil — Copa 2026',
         ],
         'profile_bg' => [
             'ui_bg_profile_standard' => 'Padrão',
@@ -49,6 +51,7 @@ return [
             'tabuleiro_premium_jade' => 'Premium jade',
             'tabuleiro_premium_obsidiana' => 'Premium obsidiana',
             'tabuleiro_premium_ouro' => 'Premium ouro',
+            'tabuleiro_brasil_copa_2026' => 'Brasil — Copa 2026',
         ],
     ],
 ];

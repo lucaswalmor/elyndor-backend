@@ -19,6 +19,12 @@ class MatchViewBuilder
         }
 
         $estado = $match->estado;
+        $motor = app(MatchEngine::class);
+        $motor->purgeExpiredRevelacoes($estado);
+        if ($estado !== $match->estado) {
+            $match->estado = $estado;
+            $match->saveQuietly();
+        }
 
         // Usa a coleção já carregada — sem disparar novas queries.
         // Requer: GameMatch::with('players.user')
@@ -72,7 +78,8 @@ class MatchViewBuilder
             'jogadores'        => $players,
             'meu_campo'        => $this->hydrateField($estado['campo'][$slot], $estado, $slot),
             'campo_inimigo'    => $this->hydrateField($estado['campo'][$opp], $estado, $opp, false),
-            'revelacoes'       => $this->hydrateRevelacoes($estado['revelacoes'][(string) $slot] ?? []),
+            'revelacoes'            => $this->hydrateRevelacoes($estado['revelacoes'][(string) $slot] ?? []),
+            'revelacoes_expira_em'  => $estado['revelacoes_expira_em'][(string) $slot] ?? null,
         ];
     }
 

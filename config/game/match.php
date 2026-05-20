@@ -27,6 +27,9 @@ return [
         'gain_per_turn' => 1,
     ],
 
+    /** Corvo / Oráculo: visão do deck inimigo (segundos); reinicia ao revelar de novo. */
+    'revelacoes_duration_seconds' => 60,
+
     'ranked' => [
         'enabled' => env('RANKED_ENABLED', true),
         'min_player_level' => 20,

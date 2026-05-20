@@ -34,6 +34,7 @@ class MatchEngine
         $this->ensureTurnDeadline($match);
 
         $estado = $match->estado;
+        $this->purgeExpiredRevelacoes($estado);
 
         // Usa a coleção já carregada — sem query adicional
         $slot = $this->playerSlotFromCollection($match, $user->id);
@@ -349,6 +350,35 @@ class MatchEngine
         $attacker['pode_atacar'] = false;
     }
 
+    /**
+     * Corvo / Oráculo: expira visão do deck após revelacoes_duration_seconds (independente do turno).
+     */
+    public function purgeExpiredRevelacoes(array &$estado): void
+    {
+        if (! isset($estado['revelacoes_expira_em'])) {
+            $estado['revelacoes_expira_em'] = ['1' => null, '2' => null];
+        }
+
+        foreach (['1', '2'] as $slotChave) {
+            $expiraEm = $estado['revelacoes_expira_em'][$slotChave] ?? null;
+            if ($expiraEm === null || $expiraEm === '') {
+                continue;
+            }
+            try {
+                $limite = \Carbon\Carbon::parse($expiraEm);
+            } catch (\Throwable) {
+                $estado['revelacoes'][$slotChave] = [];
+                $estado['revelacoes_expira_em'][$slotChave] = null;
+
+                continue;
+            }
+            if (now()->greaterThanOrEqualTo($limite)) {
+                $estado['revelacoes'][$slotChave] = [];
+                $estado['revelacoes_expira_em'][$slotChave] = null;
+            }
+        }
+    }
+
     public function getUnitAttack(array $estado, int $slot, array $unit): int
     {
         $card = CardCatalog::get($unit['card_id']);
@@ -527,11 +557,6 @@ class MatchEngine
             $unidadeFimTurno['bonus_ataque_turno'] = 0;
         }
         unset($unidadeFimTurno);
-
-        // Corvo / Oráculo: visão do deck inimigo só dura até o fim deste turno
-        if (isset($estado['revelacoes'][(string) $slot])) {
-            $estado['revelacoes'][(string) $slot] = [];
-        }
 
         $next = $slot === 1 ? 2 : 1;
         $estado['jogador_da_vez'] = $next;
