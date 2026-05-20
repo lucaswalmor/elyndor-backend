@@ -32,7 +32,7 @@ class VersaoClienteDesktopService
         }
 
         $versaoInstalador = $versao ?? '0.1.0';
-        $repositorio = (string) config('elyndor.desktop_github_repo', 'lucaswalmor/elyndor-frontend');
+        $repositorio = (string) config('elyndor.desktop_github_repo', 'lucaswalmor/elyndor-releases');
         $nomeBase = (string) config('elyndor.desktop_installer_basename', 'Elyndor');
 
         return sprintf(
@@ -50,7 +50,7 @@ class VersaoClienteDesktopService
             return $override;
         }
 
-        $repositorio = (string) config('elyndor.desktop_github_repo', 'lucaswalmor/elyndor-frontend');
+        $repositorio = (string) config('elyndor.desktop_github_repo', 'lucaswalmor/elyndor-releases');
 
         return "https://github.com/{$repositorio}/releases/latest";
     }

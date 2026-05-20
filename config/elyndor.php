@@ -9,7 +9,7 @@ return [
   /*
   | Repositório GitHub do instalador (owner/repo). Usado para montar o link direto do .exe.
   */
-  'desktop_github_repo' => env('DESKTOP_GITHUB_REPO', 'lucaswalmor/elyndor-frontend'),
+  'desktop_github_repo' => env('DESKTOP_GITHUB_REPO', 'lucaswalmor/elyndor-releases'),
 
   /*
   | Prefixo do arquivo do instalador (ex.: Elyndor → Elyndor_0.1.2_x64-setup.exe).
