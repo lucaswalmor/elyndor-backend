@@ -34,7 +34,6 @@ class MatchFound implements ShouldBroadcast
     public function broadcastWith(): array
     {
         $ranked = app(RankedService::class);
-        $pts = (int) ($this->opponent->ranked_points ?? 0);
 
         $deadline = $this->match->accept_deadline_at;
         $segundos = $deadline
@@ -43,12 +42,9 @@ class MatchFound implements ShouldBroadcast
 
         return [
             'match_id' => $this->match->id,
+            'modo' => $this->match->modo,
             'accept_deadline_at' => $deadline?->toIso8601String(),
-            'oponente' => [
-                'nome' => $this->opponent->nickname,
-                'divisao' => $ranked->divisionKeyForPoints($pts),
-                'pontos' => $pts,
-            ],
+            'oponente' => $ranked->dadosOponenteParaOferta($this->recipient, $this->opponent, $this->match),
             'segundos_para_aceitar' => $segundos,
         ];
     }

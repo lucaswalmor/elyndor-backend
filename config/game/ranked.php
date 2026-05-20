@@ -14,6 +14,19 @@ return [
     ],
 
     /*
+     * Pontos por partida ranqueada (Fase 12).
+     * Vitória: base + bónus por cada divisão que o oponente está acima do vencedor.
+     * Derrota: base; underdog (elo abaixo do vencedor) só perde a base;
+     * favorito perde base + penalidade por divisão acima do vencedor.
+     */
+    'scoring' => [
+        'win_base' => 20,
+        'win_per_tier_underdog' => 5,
+        'loss_base' => -20,
+        'loss_per_tier_favorite' => 5,
+    ],
+
+    /*
      * Ordem: índice 0 = divisão mais baixa (underdog vs acima).
      * min/max de pontos ranqueados (MMR) — mestre sem teto.
      */

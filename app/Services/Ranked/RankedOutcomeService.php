@@ -117,6 +117,11 @@ class RankedOutcomeService
         ]);
 
         $bracketMovement = $this->ranked->eloBracketMovementBetweenSnapshots($antes, $depois);
+        $divisaoJogador = $this->ranked->divisionKeyForPoints($antes);
+        $indiceJogador = $this->ranked->tierIndex($divisaoJogador);
+        $indiceOponente = $oppDiv !== null ? $this->ranked->tierIndex($oppDiv) : null;
+        $gapOponenteMenosJogador = $indiceOponente !== null ? $indiceOponente - $indiceJogador : null;
+
         Log::channel('game_balance')->info('ranked.match_player_outcome', [
             'match_id' => $match->id,
             'user_id' => $userId,
@@ -124,7 +129,10 @@ class RankedOutcomeService
             'delta' => $delta,
             'points_before' => $antes,
             'points_after' => $depois,
+            'self_division_key' => $divisaoJogador,
             'opponent_division_key' => $oppDiv,
+            'tier_gap_opponent_minus_self' => $gapOponenteMenosJogador,
+            'scoring_profile' => 'phase12_base20_tier5',
             'tier_changed' => $bracketMovement['changed'],
             'tier_direction' => $bracketMovement['direction'],
             'tier_from_key' => $bracketMovement['from_key'],

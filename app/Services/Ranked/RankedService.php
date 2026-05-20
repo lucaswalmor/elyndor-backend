@@ -2,6 +2,7 @@
 
 namespace App\Services\Ranked;
 
+use App\Models\GameMatch;
 use App\Models\User;
 
 class RankedService
@@ -154,24 +155,90 @@ class RankedService
 
     /**
      * Retorna [deltaWinner, deltaLoser] antes do multiplicador de bot (inteiro).
-     * Underdog = divisão numericamente mais baixa (ferro < bronze).
+     * Underdog = divisão com índice menor (ferro &lt; bronze &lt; …).
+     *
+     * @see config('game.ranked.scoring')
      */
     public function pointDeltas(string $winnerDivKey, string $loserDivKey): array
     {
-        $w = $this->tierIndex($winnerDivKey);
-        $l = $this->tierIndex($loserDivKey);
+        $scoring = config('game.ranked.scoring', []);
+        $winBase = (int) ($scoring['win_base'] ?? 20);
+        $winPerTier = (int) ($scoring['win_per_tier_underdog'] ?? 5);
+        $lossBase = (int) ($scoring['loss_base'] ?? -20);
+        $lossPerTierFavorite = (int) ($scoring['loss_per_tier_favorite'] ?? 5);
 
-        if ($w === $l) {
-            return [22, -22];
+        $indiceVencedor = $this->tierIndex($winnerDivKey);
+        $indicePerdedor = $this->tierIndex($loserDivKey);
+
+        $gapDivisoes = max(0, $indicePerdedor - $indiceVencedor);
+        $deltaVencedor = $winBase + ($winPerTier * $gapDivisoes);
+        $deltaPerdedor = $lossBase - ($lossPerTierFavorite * $gapDivisoes);
+
+        return [$deltaVencedor, $deltaPerdedor];
+    }
+
+    /**
+     * Pré-visualização de MMR para a modal de aceitar partida ranqueada.
+     *
+     * @return array{pontos_vitoria: int, pontos_derrota: int}|null
+     */
+    public function previsaoPontosRanqueada(
+        int $pontosJogador,
+        int $pontosOponente,
+        bool $oponenteEhBot = false,
+    ): array {
+        $divisaoJogador = $this->divisionKeyForPoints($pontosJogador);
+        $divisaoOponente = $this->divisionKeyForPoints($pontosOponente);
+
+        [$deltaVitoria] = $this->pointDeltas($divisaoJogador, $divisaoOponente);
+        [, $deltaDerrota] = $this->pointDeltas($divisaoOponente, $divisaoJogador);
+
+        if ($oponenteEhBot) {
+            $multiplicador = (float) config('game.bots.ranked_points_multiplier', 0.5);
+            $deltaVitoria = (int) round($deltaVitoria * $multiplicador);
+            $deltaDerrota = (int) round($deltaDerrota * $multiplicador);
         }
 
-        // Vencedor é underdog (tier menor = índice menor)
-        if ($w < $l) {
-            return [35, -35];
+        return [
+            'pontos_vitoria' => $deltaVitoria,
+            'pontos_derrota' => $deltaDerrota,
+        ];
+    }
+
+    /**
+     * Payload do oponente na oferta de partida (Echo + polling).
+     *
+     * @return array<string, mixed>
+     */
+    public function dadosOponenteParaOferta(User $jogador, User $oponente, GameMatch $partida): array
+    {
+        $partida->loadMissing('players');
+        $jogadorOponente = $partida->players->first(
+            fn ($player) => (int) $player->user_id === (int) $oponente->id,
+        );
+
+        $pontosOponente = (int) ($oponente->ranked_points ?? 0);
+        $chaveDivisao = $this->divisionKeyForPoints($pontosOponente);
+
+        $dados = [
+            'nome' => $oponente->nickname,
+            'divisao' => $chaveDivisao,
+            'divisao_label' => $this->divisionLabelForPoints($pontosOponente),
+            'pontos' => $pontosOponente,
+            'eh_bot' => (bool) ($jogadorOponente?->is_bot ?? false),
+        ];
+
+        if ($partida->modo !== 'ranqueada') {
+            return $dados;
         }
 
-        // Vencedor é favorito
-        return [22, -22];
+        $previsao = $this->previsaoPontosRanqueada(
+            (int) ($jogador->ranked_points ?? 0),
+            $pontosOponente,
+            $dados['eh_bot'],
+        );
+
+        return array_merge($dados, $previsao);
     }
 
     public function minLevel(): int

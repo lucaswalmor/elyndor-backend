@@ -424,15 +424,19 @@ class MatchmakingService
         $match->loadMissing('players.user');
         $oppPlayer = $match->players->first(fn ($p) => $p->user_id !== $viewer->id);
         $opp = $oppPlayer?->user;
-        $pts = (int) ($opp?->ranked_points ?? 0);
 
         return [
+            'modo' => $match->modo,
             'accept_deadline_at' => $match->accept_deadline_at?->toIso8601String(),
-            'oponente' => [
-                'nome' => $opp?->nickname ?? 'Oponente',
-                'divisao' => $opp ? $this->ranked->divisionKeyForPoints($pts) : 'ferro',
-                'pontos' => $pts,
-            ],
+            'oponente' => $opp
+                ? $this->ranked->dadosOponenteParaOferta($viewer, $opp, $match)
+                : [
+                    'nome' => 'Oponente',
+                    'divisao' => 'ferro',
+                    'divisao_label' => 'Ferro',
+                    'pontos' => 0,
+                    'eh_bot' => false,
+                ],
             'segundos_para_aceitar' => max(
                 0,
                 ($match->accept_deadline_at?->getTimestamp() ?? 0) - now()->getTimestamp()
