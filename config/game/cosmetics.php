@@ -26,6 +26,7 @@ return [
             'verso_premium_ouro' => 'Premium ouro',
             'verso_beta_tester' => 'Beta Tester',
             'verso_brasil_copa_2026' => 'Brasil — Copa 2026',
+            'versor_boomerangbr' => 'BoomerangBR — Streamer',
         ],
         'profile_bg' => [
             'ui_bg_profile_standard' => 'Padrão',

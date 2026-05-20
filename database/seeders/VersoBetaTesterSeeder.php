@@ -7,12 +7,10 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
+ * @deprecated Preferir ItemStreamerSeeder (versos + tabuleiros, vários criadores).
+ *
  * Concede o verso exclusivo «Beta Tester» (não está em nenhum baú).
- *
- * 1. Edita a constante USER_IDS abaixo com o(s) id(s) do jogador.
- * 2. Executa: php artisan db:seed --class=VersoBetaTesterSeeder
- *
- * O slug equipável na API/perfil é `verso_beta_tester` (asset_key = nome do PNG).
+ * Equivalente em ItemStreamerSeeder: verso => verso_beta_tester, tabuleiro => null.
  */
 class VersoBetaTesterSeeder extends Seeder
 {
