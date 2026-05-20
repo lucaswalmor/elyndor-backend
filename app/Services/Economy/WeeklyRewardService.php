@@ -60,6 +60,7 @@ class WeeklyRewardService
             'xp_min_claim' => (int) $cfg['xp_min_claim'],
             'claimed' => (bool) $row->claimed_at,
             'claim_window_open' => $this->inClaimWindow(),
+            'claim_block_reason' => $this->motivoResgateBloqueado($row, $cfg),
             'eligible' => $eligible,
             'reward_type' => 'chest',
             'granted_chest' => $granted ? [
@@ -142,6 +143,24 @@ class WeeklyRewardService
                 ],
             ];
         });
+    }
+
+    /**
+     * Motivo pelo qual o resgate ainda não está disponível (null = pode resgatar).
+     */
+    private function motivoResgateBloqueado(PlayerWeekly $row, array $cfg): ?string
+    {
+        if ($row->claimed_at) {
+            return 'ja_resgatado';
+        }
+        if ((int) $row->xp_earned < (int) $cfg['xp_min_claim']) {
+            return 'xp_insuficiente';
+        }
+        if (! $this->inClaimWindow()) {
+            return 'fora_do_fim_de_semana';
+        }
+
+        return null;
     }
 
     /**

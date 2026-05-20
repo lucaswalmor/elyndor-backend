@@ -36,10 +36,6 @@ Route::prefix('v1')->group(function () {
     Route::get('/avatars/starters', [ProfileController::class, 'starters']);
     Route::get('/ranked/divisions', [ProfileController::class, 'rankedDivisionOptions']);
     Route::get('/ranked/leaderboard', [ProfileController::class, 'leaderboard']);
-    Route::get('/profile/{nickname}/ranked-history', [ProfileController::class, 'publicRankedHistory'])
-        ->where('nickname', '[a-zA-Z0-9_-]+');
-    Route::get('/profile/{nickname}', [ProfileController::class, 'show'])
-        ->where('nickname', '[a-zA-Z0-9_-]+');
 
     Route::middleware(['auth:sanctum', 'touch.session'])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -109,4 +105,10 @@ Route::prefix('v1')->group(function () {
 
         Route::post('/dev/pair-queue', [DevController::class, 'pairQueue']);
     });
+
+    // Perfis públicos — depois das rotas autenticadas /profile/me/* para não capturar nickname "me".
+    Route::get('/profile/{nickname}/ranked-history', [ProfileController::class, 'publicRankedHistory'])
+        ->where('nickname', '[a-zA-Z0-9_-]+');
+    Route::get('/profile/{nickname}', [ProfileController::class, 'show'])
+        ->where('nickname', '[a-zA-Z0-9_-]+');
 });
