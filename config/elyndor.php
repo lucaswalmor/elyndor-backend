@@ -7,12 +7,20 @@ return [
   'deploy_token' => env('DEPLOY_TOKEN'),
 
   /*
-  | Link de download do instalador desktop (ex.: GitHub releases/latest).
+  | Repositório GitHub do instalador (owner/repo). Usado para montar o link direto do .exe.
   */
-  'desktop_download_url' => env(
-    'DESKTOP_DOWNLOAD_URL',
-    'https://github.com/lucaswalmor/elyndor-frontend/releases/latest',
-  ),
+  'desktop_github_repo' => env('DESKTOP_GITHUB_REPO', 'lucaswalmor/elyndor-frontend'),
+
+  /*
+  | Prefixo do arquivo do instalador (ex.: Elyndor → Elyndor_0.1.2_x64-setup.exe).
+  */
+  'desktop_installer_basename' => env('DESKTOP_INSTALLER_BASENAME', 'Elyndor'),
+
+  /*
+  | Opcional: URL fixa do .exe (sobrescreve o link automático por versão).
+  | Se vazio, usa releases/latest/download/Elyndor_{versao}_x64-setup.exe
+  */
+  'desktop_download_url' => env('DESKTOP_DOWNLOAD_URL'),
 
   /*
   | Validação de versão do cliente desktop (matchmaking e checagens server-side).

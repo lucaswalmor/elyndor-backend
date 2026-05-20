@@ -24,14 +24,47 @@ class VersaoClienteDesktopService
             ->first();
     }
 
+    public function urlDownloadDiretoParaVersao(?string $versao): string
+    {
+        $override = config('elyndor.desktop_download_url');
+        if (is_string($override) && $override !== '' && str_ends_with(strtolower($override), '.exe')) {
+            return $override;
+        }
+
+        $versaoInstalador = $versao ?? '0.1.0';
+        $repositorio = (string) config('elyndor.desktop_github_repo', 'lucaswalmor/elyndor-frontend');
+        $nomeBase = (string) config('elyndor.desktop_installer_basename', 'Elyndor');
+
+        return sprintf(
+            'https://github.com/%s/releases/latest/download/%s_%s_x64-setup.exe',
+            $repositorio,
+            $nomeBase,
+            $versaoInstalador,
+        );
+    }
+
+    public function urlPaginaReleases(): string
+    {
+        $override = config('elyndor.desktop_download_url');
+        if (is_string($override) && $override !== '' && ! str_ends_with(strtolower($override), '.exe')) {
+            return $override;
+        }
+
+        $repositorio = (string) config('elyndor.desktop_github_repo', 'lucaswalmor/elyndor-frontend');
+
+        return "https://github.com/{$repositorio}/releases/latest";
+    }
+
     public function metaPublica(): array
     {
         $registro = $this->versaoAtualDesktop();
+        $versao = $registro?->versao ?? '0.1.0';
 
         return [
-            'versao' => $registro?->versao ?? '0.1.0',
+            'versao' => $versao,
             'notas' => $registro?->notas,
-            'url_download' => (string) config('elyndor.desktop_download_url'),
+            'url_download' => $this->urlDownloadDiretoParaVersao($versao),
+            'url_releases' => $this->urlPaginaReleases(),
         ];
     }
 
@@ -94,7 +127,7 @@ class VersaoClienteDesktopService
             throw new VersaoClienteDesatualizadaException(
                 $versaoCliente,
                 $registro->versao,
-                (string) config('elyndor.desktop_download_url'),
+                $this->urlDownloadDiretoParaVersao($registro->versao),
             );
         }
 
@@ -102,7 +135,7 @@ class VersaoClienteDesktopService
             throw new VersaoClienteDesatualizadaException(
                 $versaoCliente,
                 $registro->versao,
-                (string) config('elyndor.desktop_download_url'),
+                $this->urlDownloadDiretoParaVersao($registro->versao),
             );
         }
     }
