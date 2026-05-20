@@ -106,6 +106,10 @@ class MatchEngine
             'atacar_jogador' => [
                 'instancia_id' => (string) ($payload['instancia_id'] ?? ''),
             ],
+            'invocar' => [
+                'instancia_id' => (string) ($payload['instancia_id'] ?? ''),
+                'alvo_instancia_id' => (string) ($payload['alvo_instancia_id'] ?? ''),
+            ],
             default => [],
         };
     }
@@ -184,6 +188,10 @@ class MatchEngine
             $this->effects->triggerSkills($estado, $slot, 'ao_morrer', $unit, $animacoes);
         }
 
+        if (! isset($unit['vida_max'])) {
+            $cardMorta = CardCatalog::get($unit['card_id']);
+            $unit['vida_max'] = $cardMorta?->vida ?? max(1, $unit['vida_atual']);
+        }
         $estado['ultimo_aliado_morto'][(string) $slot] = $unit;
         $estado['campo'][$slot] = array_values(array_filter(
             $estado['campo'][$slot],
@@ -224,8 +232,10 @@ class MatchEngine
                 }
                 if ($crescHp < 3) {
                     $ally['vida_atual'] += 1;
+                    $ally['vida_max'] = ($ally['vida_max'] ?? CardCatalog::get($ally['card_id'])?->vida ?? 1) + 1;
                     $ally['crescimento_hp'] = $crescHp + 1;
                 }
+                $this->syncUnit($estado, $s, $ally);
             }
             unset($ally);
         }
@@ -278,7 +288,8 @@ class MatchEngine
                 ? max(0, $vidaAntes - $defRef['vida_atual'])
                 : $vidaAntes; // morreu: dano = vida que tinha
 
-            if (($this->findUnit($estado, $oppSlot, $defender['instancia_id'])['vida_atual'] ?? -1) > 0) {
+            $defensorAposDano = $this->findUnit($estado, $oppSlot, $defender['instancia_id']);
+            if ($defensorAposDano && ($defensorAposDano['vida_atual'] ?? 0) > 0) {
                 $noRetaliation = $this->effects->hasPassive($attacker['card_id'], 'ataque_sem_retaliacao');
                 $silenced      = $defender['silenciado'] ?? false;
 
@@ -349,6 +360,14 @@ class MatchEngine
             throw new InvalidArgumentException('Campo cheio');
         }
 
+        if ($this->effects->cardRequiresAllyTargetForBattleCry($card) &&
+            count($estado['campo'][$slot]) > 0) {
+            $alvoId = $payload['alvo_instancia_id'] ?? null;
+            if (! $alvoId || ! $this->findUnit($estado, $slot, $alvoId)) {
+                throw new InvalidArgumentException('Selecione um aliado em campo');
+            }
+        }
+
         $player = &$estado['jogadores'][(string) $slot];
         if ($player['energia_atual'] < $card->custo) {
             throw new InvalidArgumentException('Energia insuficiente');
@@ -361,6 +380,7 @@ class MatchEngine
             'instancia_id' => (string) Str::uuid(),
             'card_id' => $cardId,
             'vida_atual' => $card->vida,
+            'vida_max' => $card->vida,
             'bonus_ataque' => 0,
             'pode_atacar' => false,
             'foi_invocado_neste_turno' => true,
@@ -368,12 +388,16 @@ class MatchEngine
             'efeitos' => [],
             'flags' => [],
         ];
+        $this->effects->initializeUnitFlags($unit, $card);
 
         $estado['campo'][$slot][] = $unit;
         $animacoes[] = ['tipo' => 'invocar', 'instancia_id' => $unit['instancia_id'], 'card_id' => $cardId];
 
         $unitRef = &$estado['campo'][$slot][array_key_last($estado['campo'][$slot])];
-        $this->effects->applyBattleCry($estado, $slot, $unitRef, $animacoes);
+        $contextoGrito = [
+            'alvo_instancia_id' => $payload['alvo_instancia_id'] ?? null,
+        ];
+        $this->effects->applyBattleCry($estado, $slot, $unitRef, $animacoes, $contextoGrito);
     }
 
     private function attackUnit(array &$estado, int $slot, array $payload, array &$animacoes): void
@@ -422,6 +446,10 @@ class MatchEngine
 
         $dmg = $this->getUnitAttack($estado, $slot, $attacker);
         $estado['jogadores'][(string) $opp]['vida'] -= $dmg;
+        $this->effects->triggerSkills($estado, $slot, 'ao_atacar', $attacker, $animacoes, [
+            'dano' => $dmg,
+            'alvo' => null,
+        ]);
         $attacker['pode_atacar'] = false;
         $this->syncUnit($estado, $slot, $attacker);
         $animacoes[] = ['tipo' => 'dano_jogador', 'player' => $opp, 'valor' => $dmg];

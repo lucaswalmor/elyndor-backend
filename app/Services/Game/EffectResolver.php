@@ -40,17 +40,53 @@ class EffectResolver
         }
     }
 
-    public function applyBattleCry(array &$estado, int $slot, array &$unit, array &$animacoes): void
-    {
+    public function applyBattleCry(
+        array &$estado,
+        int $slot,
+        array &$unit,
+        array &$animacoes,
+        array $context = [],
+    ): void {
         $card = CardCatalog::get($unit['card_id']);
         if (! $card) {
             return;
         }
+        $context['invocador_instancia_id'] = $unit['instancia_id'];
         foreach ($card->skills as $skill) {
             if ($skill->tipo === 'batalha_cry' || $skill->gatilho === 'ao_invocar') {
-                $this->apply($estado, $slot, $unit, $skill->efeito, $animacoes, []);
+                $this->apply($estado, $slot, $unit, $skill->efeito, $animacoes, $context);
             }
         }
+    }
+
+    /**
+     * Flags persistentes definidas no seed (ex.: Devorador — crescimento por morte).
+     */
+    public function initializeUnitFlags(array &$unit, $card): void
+    {
+        foreach ($card->skills ?? [] as $skill) {
+            if (($skill->efeito['tipo'] ?? '') === 'crescimento_por_morte') {
+                $unit['flags']['crescimento_por_morte'] = true;
+                $unit['crescimento_atk'] = 0;
+                $unit['crescimento_hp'] = 0;
+            }
+        }
+    }
+
+    public function cardRequiresAllyTargetForBattleCry($card): bool
+    {
+        foreach ($card->skills ?? [] as $skill) {
+            if ($skill->tipo !== 'batalha_cry' && $skill->gatilho !== 'ao_invocar') {
+                continue;
+            }
+            $efeito = $skill->efeito ?? [];
+            if (($efeito['tipo'] ?? '') === 'retornar_aliado_mao' &&
+                ($efeito['selecao'] ?? '') === 'aliado_campo') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function apply(
@@ -110,7 +146,7 @@ class EffectResolver
                 $this->flagRessurreicao($estado, $slot);
                 break;
             case 'reviver_ultimo_aliado':
-                $this->reviveLastAlly($estado, $slot, $animacoes);
+                $this->reviveLastAlly($estado, $slot, $efeito, $animacoes);
                 break;
             case 'retornar_aliado_mao':
                 $this->returnAllyToHand($estado, $slot, $context, $animacoes);
@@ -309,14 +345,19 @@ class EffectResolver
         }
     }
 
-    private function reviveLastAlly(array &$estado, int $slot, array &$animacoes): void
+    private function reviveLastAlly(array &$estado, int $slot, array $efeito, array &$animacoes): void
     {
         $dead = $estado['ultimo_aliado_morto'][(string) $slot] ?? null;
         if (! $dead || count($estado['campo'][$slot]) >= config('game.match.field.max_units_per_player')) {
             return;
         }
+        $card = CardCatalog::get($dead['card_id'] ?? 0);
+        $hpMax = (int) ($dead['vida_max'] ?? $card?->vida ?? 1);
+        $percentual = max(1, min(100, (int) ($efeito['hp_percentual'] ?? 50)));
+
         $dead['instancia_id'] = (string) Str::uuid();
-        $dead['vida_atual'] = max(1, (int) floor(($dead['vida_max'] ?? 1) / 2));
+        $dead['vida_max'] = $hpMax;
+        $dead['vida_atual'] = max(1, (int) floor($hpMax * $percentual / 100));
         $dead['pode_atacar'] = false;
         $dead['foi_invocado_neste_turno'] = true;
         $estado['campo'][$slot][] = $dead;
@@ -326,7 +367,8 @@ class EffectResolver
     private function returnAllyToHand(array &$estado, int $slot, array $context, array &$animacoes): void
     {
         $targetId = $context['alvo_instancia_id'] ?? null;
-        if (! $targetId) {
+        $invocadorId = $context['invocador_instancia_id'] ?? null;
+        if (! $targetId || $targetId === $invocadorId) {
             return;
         }
         $unit = $this->engine->findUnit($estado, $slot, $targetId);
@@ -337,13 +379,18 @@ class EffectResolver
             $estado['campo'][$slot],
             fn ($u) => $u['instancia_id'] !== $targetId
         ));
-        if (count($estado['jogadores'][(string) $slot]['mao']) < config('game.match.field.max_hand_size')) {
-            $estado['jogadores'][(string) $slot]['mao'][] = [
+        $jogador = &$estado['jogadores'][(string) $slot];
+        $maoCheia = count($jogador['mao']) >= config('game.match.field.max_hand_size');
+        if ($maoCheia) {
+            $jogador['cemiterio'][] = $unit['card_id'];
+            $animacoes[] = ['tipo' => 'retornar_cemiterio', 'instancia_id' => $targetId];
+        } else {
+            $jogador['mao'][] = [
                 'instancia_id' => (string) Str::uuid(),
                 'card_id' => $unit['card_id'],
             ];
+            $animacoes[] = ['tipo' => 'retornar_mao', 'instancia_id' => $targetId];
         }
-        $animacoes[] = ['tipo' => 'retornar_mao', 'instancia_id' => $targetId];
     }
 
     private function destroyRandomEnemy(array &$estado, int $slot, array &$animacoes, bool $disparaAoMorrer = true): void
@@ -394,7 +441,7 @@ class EffectResolver
         }
         $heal = min($dano, $maximo);
         $card = CardCatalog::get($unit['card_id']);
-        $maxHp = $card?->vida ?? 99;
+        $maxHp = (int) ($unit['vida_max'] ?? $card?->vida ?? 99);
         $novaVida = min($maxHp, $unit['vida_atual'] + $heal);
         $healReal = $novaVida - $unit['vida_atual'];
         if ($healReal <= 0) {
