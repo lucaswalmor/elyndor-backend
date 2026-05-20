@@ -25,6 +25,9 @@ class MatchController extends Controller
     {
         $match = GameMatch::with('players.user.avatar')->findOrFail($id);
         $this->authorizeMatch($match, $request->user()->id);
+        $this->engine->recoverMatchOnRead($match);
+        $match->refresh();
+        $match->load('players.user.avatar');
         $view = $this->viewBuilder->forUser($match, $request->user());
 
         return response()->json($view);
@@ -55,6 +58,9 @@ class MatchController extends Controller
     {
         $match = GameMatch::with('players.user.avatar')->findOrFail($id);
         $this->authorizeMatch($match, $request->user()->id);
+        $this->engine->recoverMatchOnRead($match);
+        $match->refresh();
+        $match->load('players.user.avatar');
 
         return response()->json([
             'estado_completo' => $this->viewBuilder->forUser($match, $request->user()),

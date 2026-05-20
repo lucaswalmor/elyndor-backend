@@ -133,12 +133,42 @@ class MatchEngine
         }
         if ($match->turno_deadline_em && now()->greaterThan($match->turno_deadline_em)) {
             $estado = $match->estado;
-            $slot = $estado['jogador_da_vez'];
+            if (! is_array($estado)) {
+                return;
+            }
+            $slot = (int) ($estado['jogador_da_vez'] ?? 1);
             $animacoes = [];
             $this->endTurn($match, $estado, $slot, $animacoes, true);
             $match->save();
 
             return;
+        }
+    }
+
+    /**
+     * Ao recarregar a partida (GET): encerra turno expirado e reenfileira jogada do substituto se travou.
+     */
+    public function recoverMatchOnRead(GameMatch $match): void
+    {
+        if ($match->status !== MatchStatus::EmAndamento) {
+            return;
+        }
+
+        $match->loadMissing('players');
+
+        $this->ensureTurnDeadline($match);
+        $match->refresh();
+        $match->load('players');
+
+        if ($match->status !== MatchStatus::EmAndamento || ! is_array($match->estado)) {
+            return;
+        }
+
+        $slot = (int) ($match->estado['jogador_da_vez'] ?? 0);
+        $matchPlayer = $match->players->firstWhere('player_slot', $slot);
+
+        if ($matchPlayer?->is_bot) {
+            app(SubstituteBotTurnDispatcher::class)->notify($match->id, $slot);
         }
     }
 
