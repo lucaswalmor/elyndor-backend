@@ -9,8 +9,8 @@ return [
   'enabled' => env('BOTS_ENABLED', true),
 
   'queue' => [
-    'casual_fallback_after_seconds' => 20,
-    'ranked_fallback_after_seconds' => 30,
+    'casual_fallback_after_seconds' => (int) env('BOTS_CASUAL_FALLBACK_SECONDS', 20),
+    'ranked_fallback_after_seconds' => (int) env('BOTS_RANKED_FALLBACK_SECONDS', 30),
   ],
 
   // Ranqueada vs substituto: partida normal, pontos = tabela humana × multiplier (0.5 → ±11)

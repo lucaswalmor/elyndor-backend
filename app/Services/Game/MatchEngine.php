@@ -521,6 +521,11 @@ class MatchEngine
     {
         $this->tickStatusEffects($estado, $slot);
 
+        // Corvo / Oráculo: visão do deck inimigo só dura até o fim deste turno
+        if (isset($estado['revelacoes'][(string) $slot])) {
+            $estado['revelacoes'][(string) $slot] = [];
+        }
+
         $next = $slot === 1 ? 2 : 1;
         $estado['jogador_da_vez'] = $next;
         $match->jogador_da_vez = $next;

@@ -52,6 +52,9 @@ class UserResource extends JsonResource
             'other_modes_matches_played' => $stats['other_modes_matches_played'],
             'playtime_seconds' => $stats['playtime_seconds'],
             'playtime_hours' => $stats['playtime_hours'],
+            'is_content_creator' => (bool) ($this->is_content_creator ?? false),
+            'pode_ativar_codigo_streamer' => ! ($this->is_content_creator ?? false)
+                && $this->streamer_invite_token === null,
         ];
     }
 }

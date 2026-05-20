@@ -12,6 +12,7 @@ use App\Models\PlayerLevel;
 use App\Models\User;
 use App\Services\AntiAbuse\AntiAbuseService;
 use App\Services\Collection\PlayerCollectionService;
+use App\Services\Streamer\StreamerInviteService;
 use Illuminate\Support\Facades\DB;
 
 class RegisterService
@@ -19,6 +20,7 @@ class RegisterService
     public function __construct(
         private PlayerCollectionService $collection,
         private AntiAbuseService $antiAbuse,
+        private StreamerInviteService $streamerInvites,
     ) {}
 
     public function register(array $data): User
@@ -60,6 +62,11 @@ class RegisterService
             ]);
 
             $this->attachStarterDeck($user, $deck);
+
+            $codigoStreamer = isset($data['codigo_streamer']) ? trim((string) $data['codigo_streamer']) : '';
+            if ($codigoStreamer !== '') {
+                $this->streamerInvites->tentarAtivar($user, $codigoStreamer);
+            }
 
             return $user->load(['playerLevel', 'avatar']);
         });

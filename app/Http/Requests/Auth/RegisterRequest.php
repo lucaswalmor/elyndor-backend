@@ -33,6 +33,7 @@ class RegisterRequest extends FormRequest
             'avatar_slug' => ['required', 'string', 'max:40', \Illuminate\Validation\Rule::exists('avatars', 'slug')->where('is_starter', true)],
             'device_id' => ['nullable', 'string', 'max:80'],
             'client_type' => ['nullable', 'in:web,desktop'],
+            'codigo_streamer' => ['nullable', 'string', 'max:64'],
         ];
     }
 }

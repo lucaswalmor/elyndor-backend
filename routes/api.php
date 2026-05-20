@@ -17,7 +17,9 @@ use App\Http\Controllers\Api\V1\PresenceController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SocialSummaryController;
 use App\Http\Controllers\Api\V1\ShopController;
+use App\Http\Controllers\Api\V1\CommunityDeckController;
 use App\Http\Controllers\Api\V1\StatsController;
+use App\Http\Controllers\Api\V1\StreamerProfileController;
 use App\Http\Controllers\Api\V1\WeeklyController;
 use Illuminate\Support\Facades\Route;
 
@@ -68,6 +70,20 @@ Route::prefix('v1')->group(function () {
         Route::post('/decks', [DeckController::class, 'store']);
         Route::put('/decks/{id}', [DeckController::class, 'update']);
         Route::delete('/decks/{id}', [DeckController::class, 'destroy']);
+
+        Route::get('/community-decks', [CommunityDeckController::class, 'index']);
+        Route::get('/community-decks/me', [CommunityDeckController::class, 'minhas']);
+        Route::post('/community-decks/import', [CommunityDeckController::class, 'import']);
+        Route::get('/community-decks/{id}', [CommunityDeckController::class, 'show']);
+        Route::post('/community-decks', [CommunityDeckController::class, 'store']);
+        Route::delete('/community-decks/{id}', [CommunityDeckController::class, 'destroy']);
+        Route::post('/community-decks/{id}/like', [CommunityDeckController::class, 'like']);
+        Route::delete('/community-decks/{id}/like', [CommunityDeckController::class, 'unlike']);
+        Route::post('/community-decks/{id}/copy', [CommunityDeckController::class, 'copy']);
+
+        Route::get('/profile/streamer', [StreamerProfileController::class, 'show']);
+        Route::post('/profile/streamer/activate', [StreamerProfileController::class, 'activate']);
+        Route::put('/profile/streamer', [StreamerProfileController::class, 'update']);
 
         Route::post('/matchmaking/join', [MatchmakingController::class, 'join']);
         Route::post('/matchmaking/challenge/{user}', [MatchmakingController::class, 'challenge']);

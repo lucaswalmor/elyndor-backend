@@ -89,7 +89,7 @@ class ProfileController extends Controller
     public function show(string $nickname): JsonResponse
     {
         $user = User::query()
-            ->with(['playerLevel', 'avatar'])
+            ->with(['playerLevel', 'avatar', 'streamerProfile'])
             ->where('nickname', $nickname)
             ->firstOrFail();
 

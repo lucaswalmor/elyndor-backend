@@ -46,6 +46,12 @@ class PublicProfileResource extends JsonResource
             'other_modes_matches_played' => $stats['other_modes_matches_played'],
             'playtime_seconds' => $stats['playtime_seconds'],
             'playtime_hours' => $stats['playtime_hours'],
+            'is_content_creator' => (bool) ($this->is_content_creator ?? false),
+            'streamer_divulgacao' => $this->when(
+                (bool) ($this->is_content_creator ?? false),
+                fn () => app(\App\Services\Streamer\StreamerInviteService::class)
+                    ->formatarPerfil($this->streamerProfile),
+            ),
         ];
     }
 }

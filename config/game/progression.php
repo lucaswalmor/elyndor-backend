@@ -74,7 +74,7 @@ return [
     ],
 
     'decks' => [
-        'max_per_user' => 5,
+        'max_per_user' => 30,
         'size' => 15,
         'copy_limits' => [
             'comum' => 3,

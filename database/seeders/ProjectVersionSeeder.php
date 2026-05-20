@@ -16,5 +16,13 @@ class ProjectVersionSeeder extends Seeder
                 'notas' => 'Versão inicial do cliente desktop (Beta).',
             ],
         );
+
+        ProjectVersion::query()->updateOrCreate(
+            ['client_type' => ProjectVersion::CLIENT_GAME],
+            [
+                'versao' => '0.1.0',
+                'notas' => 'Versão global do jogo (cartas/meta) — bump ao alterar balanceamento.',
+            ],
+        );
     }
 }
