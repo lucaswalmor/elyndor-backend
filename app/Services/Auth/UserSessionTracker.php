@@ -54,4 +54,10 @@ class UserSessionTracker
 
         $row->save();
     }
+
+    /** Remove presença online imediatamente (logout ou fecho da aba). */
+    public function endSession(User $user): void
+    {
+        UserSession::query()->where('user_id', $user->id)->delete();
+    }
 }

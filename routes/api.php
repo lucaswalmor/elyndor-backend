@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\InternalVersaoDesktopController;
 use App\Http\Controllers\Api\V1\MatchController;
 use App\Http\Controllers\Api\V1\MatchmakingController;
 use App\Http\Controllers\Api\V1\MetaController;
+use App\Http\Controllers\Api\V1\PresenceController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\SocialSummaryController;
 use App\Http\Controllers\Api\V1\ShopController;
@@ -40,6 +41,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'touch.session'])->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::post('/presence/heartbeat', [PresenceController::class, 'heartbeat']);
+        Route::post('/presence/leave', [PresenceController::class, 'leave']);
 
         Route::put('/profile/cosmetics', [ProfileController::class, 'updateCosmetics']);
         Route::get('/profile/me/ranked-history', [ProfileController::class, 'myRankedHistory']);
