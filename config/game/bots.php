@@ -6,7 +6,7 @@
  * Nunca expor is_bot ao cliente. Ver roadmap/matchmaking.md
  */
 return [
-  'enabled' => env('BOTS_ENABLED', false),
+  'enabled' => env('BOTS_ENABLED', true),
 
   'queue' => [
     'casual_fallback_after_seconds' => 20,
@@ -22,19 +22,21 @@ return [
   ],
 
   'difficulties' => [
+    // Fila normal: acima do antigo “ouro” (0.65) — desafio consistente
     'casual' => [
       'slug' => 'casual',
-      'aggression' => 0.58,
-      'mistake_chance' => 0.06,
+      'aggression' => 0.78,
+      'mistake_chance' => 0.04,
     ],
+    // Escala deslocada: perfil que era ouro → bronze; demais divisões +1 tier
     'ranked' => [
-      'ferro' => ['aggression' => 0.35, 'mistake_chance' => 0.12],
-      'bronze' => ['aggression' => 0.45, 'mistake_chance' => 0.10],
-      'prata' => ['aggression' => 0.55, 'mistake_chance' => 0.08],
-      'ouro' => ['aggression' => 0.65, 'mistake_chance' => 0.06],
-      'platina' => ['aggression' => 0.72, 'mistake_chance' => 0.05],
-      'diamante' => ['aggression' => 0.78, 'mistake_chance' => 0.04],
-      'mestre' => ['aggression' => 0.85, 'mistake_chance' => 0.03],
+      'ferro' => ['aggression' => 0.45, 'mistake_chance' => 0.10],
+      'bronze' => ['aggression' => 0.65, 'mistake_chance' => 0.06],
+      'prata' => ['aggression' => 0.72, 'mistake_chance' => 0.05],
+      'ouro' => ['aggression' => 0.78, 'mistake_chance' => 0.04],
+      'platina' => ['aggression' => 0.85, 'mistake_chance' => 0.03],
+      'diamante' => ['aggression' => 0.88, 'mistake_chance' => 0.025],
+      'mestre' => ['aggression' => 0.92, 'mistake_chance' => 0.02],
     ],
   ],
 ];
