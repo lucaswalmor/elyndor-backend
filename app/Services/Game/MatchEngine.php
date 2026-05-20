@@ -623,7 +623,7 @@ class MatchEngine
                     'vencedor_id' => $winnerUserId,
                     'finalizada_em' => now(),
                 ]);
-                broadcast(new MatchFinished($match, $winnerUserId, 'vida_zerada'));
+                event(new MatchFinished($match, $winnerUserId, 'vida_zerada'));
 
                 return true;
             }
