@@ -27,4 +27,11 @@ class WeeklyController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
     }
+
+    public function dismissModal(Request $request): JsonResponse
+    {
+        $this->weekly->dismissModal($request->user());
+
+        return response()->json($this->weekly->status($request->user()));
+    }
 }

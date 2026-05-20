@@ -49,6 +49,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/collection', [CollectionController::class, 'index']);
         Route::get('/weekly/status', [WeeklyController::class, 'status']);
         Route::post('/weekly/claim', [WeeklyController::class, 'claim']);
+        Route::post('/weekly/dismiss-modal', [WeeklyController::class, 'dismissModal']);
         Route::get('/shop/catalog', [ShopController::class, 'catalog']);
         Route::post('/shop/buy', [ShopController::class, 'buy']);
         Route::get('/economy/chest/prices', [EconomyController::class, 'chestPrices']);

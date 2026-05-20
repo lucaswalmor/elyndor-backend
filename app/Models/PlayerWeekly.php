@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PlayerWeekly extends Model
 {
     protected $fillable = [
-        'user_id', 'week_start', 'xp_earned', 'claimed_at', 'offers', 'granted_chest_id',
+        'user_id', 'week_start', 'xp_earned', 'claimed_at', 'modal_resgate_vista_em',
+        'offers', 'granted_chest_id',
     ];
 
     protected function casts(): array
@@ -16,6 +17,7 @@ class PlayerWeekly extends Model
         return [
             'week_start' => 'date',
             'claimed_at' => 'datetime',
+            'modal_resgate_vista_em' => 'datetime',
             'offers' => 'array',
         ];
     }

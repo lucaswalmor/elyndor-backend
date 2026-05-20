@@ -28,9 +28,10 @@ return [
         'offers_count' => 4,
         'pick_count' => 2,
         'max_legendary_in_offers' => 1,
-        /** Dev: permite resgate semanal em qualquer dia */
-        'claim_any_time' => env('WEEKLY_CLAIM_ANY_TIME', false),
-        /** Slug da tabela weekly_chest_pools ao entregar um baú no resgate */
+        /**
+         * Ciclo: domingo (1º login) inicia/reseta → sábado último dia para resgatar.
+         * Domingo seguinte sem resgate = perde o baú. Fuso = config app.timezone.
+         */
         'chest_pool_slug' => env('WEEKLY_CHEST_POOL_SLUG', 'padrao'),
     ],
 

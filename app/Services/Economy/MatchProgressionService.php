@@ -5,13 +5,15 @@ namespace App\Services\Economy;
 use App\Models\GameMatch;
 use App\Models\MatchPlayer;
 use App\Models\PlayerLevel;
-use App\Models\PlayerWeekly;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class MatchProgressionService
 {
+    public function __construct(
+        private WeeklyRewardService $weekly,
+    ) {}
+
     public function applyIfNotYet(GameMatch $match, int $vencedorUserId): void
     {
         if (DB::table('match_progression_applied')->where('match_id', $match->id)->exists()) {
@@ -77,7 +79,7 @@ class MatchProgressionService
         $user->cristais = (int) $user->cristais + $cristais;
         $user->save();
 
-        $this->addWeeklyXp($user, $xp);
+        $this->weekly->addWeeklyXp($user, $xp);
 
         $level = PlayerLevel::query()->lockForUpdate()->where('user_id', $userId)->first();
         if (! $level) {
@@ -101,29 +103,4 @@ class MatchProgressionService
         $level->save();
     }
 
-    private function addWeeklyXp(User $user, int $xpGain): void
-    {
-        $weeklyCfg = config('game.progression.weekly');
-        $cap = (int) $weeklyCfg['xp_cap'];
-        $weekStart = Carbon::now(config('app.timezone'))->startOfWeek(Carbon::MONDAY)->toDateString();
-
-        $row = PlayerWeekly::query()->firstOrCreate(
-            [
-                'user_id' => $user->id,
-                'week_start' => $weekStart,
-            ],
-            ['xp_earned' => 0]
-        );
-
-        if ($row->claimed_at) {
-            return;
-        }
-
-        $room = max(0, $cap - (int) $row->xp_earned);
-        $add = min($xpGain, $room);
-        if ($add > 0) {
-            $row->xp_earned = (int) $row->xp_earned + $add;
-            $row->save();
-        }
-    }
 }
