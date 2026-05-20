@@ -18,7 +18,7 @@ class VersoBetaTesterSeeder extends Seeder
 {
     /** @var list<int> IDs de utilizadores — alterar manualmente antes de correr a seeder */
     private const USER_IDS = [
-        // 1,
+        1,
     ];
 
     private const CATEGORIA = 'card_back';
