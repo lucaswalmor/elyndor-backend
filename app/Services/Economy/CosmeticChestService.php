@@ -72,7 +72,7 @@ class CosmeticChestService
                 }
             }
 
-            $picked = $this->pickWeightedItem($candidates);
+            $picked = $this->pickWeightedItem($candidates, $chest);
             if (! $picked instanceof ChestItem) {
                 throw new InvalidArgumentException('Falha ao sortear recompensa.');
             }
@@ -295,7 +295,100 @@ class CosmeticChestService
     /**
      * @param  Collection<int, ChestItem>  $items
      */
-    private function pickWeightedItem(Collection $items): ?ChestItem
+    private function pickWeightedItem(Collection $items, ?Chest $chest = null): ?ChestItem
+    {
+        $tierWeights = $this->tierWeightsForChest($chest);
+        if ($tierWeights !== null && $items->isNotEmpty()) {
+            $byTier = $items->groupBy(fn (ChestItem $item) => $this->normalizeDisplayTier($item->display_tier));
+            $chosenTier = $this->pickTierByWeights($tierWeights, $byTier->keys()->all());
+            $pool = $byTier->get($chosenTier);
+            if ($pool !== null && $pool->isNotEmpty()) {
+                return $this->pickWeightedItemByDropWeight($pool);
+            }
+        }
+
+        return $this->pickWeightedItemByDropWeight($items);
+    }
+
+    /**
+     * @return array<string, int>|null
+     */
+    private function tierWeightsForChest(?Chest $chest): ?array
+    {
+        if (! $chest) {
+            return null;
+        }
+
+        $slug = (string) $chest->slug;
+
+        if ($slug === 'chest_cristal_basico') {
+            return config('game.chests.spin_weights_cristal_basico');
+        }
+
+        $usesTierRoulette = [
+            'premium_padrao',
+            'bau_recompensa_semanal',
+            'bau_cartas_infernais',
+            'bau_cartas_natureza',
+            'bau_cartas_mecanicos',
+            'bau_cartas_mortos_vivos',
+            'bau_cartas_celestiais',
+            'bau_cosmetico_fundos',
+            'bau_cosmetico_tabuleiros',
+            'bau_cosmetico_versos',
+        ];
+
+        if (in_array($slug, $usesTierRoulette, true)) {
+            return config('game.chests.spin_weights_premium');
+        }
+
+        return null;
+    }
+
+    private function normalizeDisplayTier(?string $tier): string
+    {
+        $tier = strtolower((string) $tier);
+
+        return in_array($tier, ['comum', 'rara', 'epica', 'lendaria'], true) ? $tier : 'comum';
+    }
+
+    /**
+     * @param  array<string, int>  $tierWeights
+     * @param  list<string>  $availableTiers
+     */
+    private function pickTierByWeights(array $tierWeights, array $availableTiers): string
+    {
+        $order = ['comum', 'rara', 'epica', 'lendaria'];
+        $sum = 0;
+        foreach ($order as $tier) {
+            if (! in_array($tier, $availableTiers, true)) {
+                continue;
+            }
+            $sum += max(0, (int) ($tierWeights[$tier] ?? 0));
+        }
+        if ($sum <= 0) {
+            return $availableTiers[0] ?? 'comum';
+        }
+
+        $roll = random_int(0, $sum - 1);
+        $acc = 0;
+        foreach ($order as $tier) {
+            if (! in_array($tier, $availableTiers, true)) {
+                continue;
+            }
+            $acc += max(0, (int) ($tierWeights[$tier] ?? 0));
+            if ($roll < $acc) {
+                return $tier;
+            }
+        }
+
+        return $availableTiers[array_key_last($availableTiers)] ?? 'comum';
+    }
+
+    /**
+     * @param  Collection<int, ChestItem>  $items
+     */
+    private function pickWeightedItemByDropWeight(Collection $items): ?ChestItem
     {
         $sum = 0;
         foreach ($items as $item) {
@@ -305,12 +398,12 @@ class CosmeticChestService
             return $items->first();
         }
 
-        $r = random_int(0, $sum - 1);
+        $roll = random_int(0, $sum - 1);
         $acc = 0;
         foreach ($items as $item) {
             $w = max(0, (int) $item->drop_weight);
             $acc += $w;
-            if ($r < $acc) {
+            if ($roll < $acc) {
                 return $item;
             }
         }

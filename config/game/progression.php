@@ -23,7 +23,8 @@ return [
 
     'weekly' => [
         'xp_cap' => 1000,
-        'xp_min_claim' => 500,
+        /** Meta para desbloquear o resgate do baú semanal (= barra cheia). */
+        'xp_min_claim' => 1000,
         'offers_count' => 4,
         'pick_count' => 2,
         'max_legendary_in_offers' => 1,
@@ -34,11 +35,20 @@ return [
     ],
 
     /** Legado: antes convertia excedente em cristais em `applyCardGain`. Hoje o excedente vai para `player_loot_duplicates`. */
+    /** Cristais ao desfragmentar carta repetida (comum < rara < épica < lendária). */
     'duplicate_cristais' => [
-        'comum' => 8,
-        'rara' => 20,
-        'epica' => 60,
-        'lendaria' => 200,
+        'comum' => 25,
+        'rara' => 75,
+        'epica' => 250,
+        'lendaria' => 750,
+    ],
+
+    /** Moedas ao desfragmentar cosmético repetido, por tier de exibição do loot. */
+    'duplicate_moedas' => [
+        'comum' => 90,
+        'rara' => 270,
+        'epica' => 900,
+        'lendaria' => 2700,
     ],
 
     /** Bônus de cristais ao subir de nível: base + per_level × novo_nível */

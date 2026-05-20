@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Card;
 use App\Models\Chest;
+use App\Services\Economy\DuplicateDisenchantService;
 use App\Models\PlayerChestStack;
 use App\Models\PlayerLootDuplicate;
 use App\Services\Economy\CosmeticChestService;
@@ -96,7 +97,10 @@ class InventoryController extends Controller
             ? collect()
             : Card::query()->whereIn('id', $cardIds)->get()->keyBy('id');
 
-        $items = $rows->map(function (PlayerLootDuplicate $row) use ($cards) {
+        $disenchant = app(DuplicateDisenchantService::class);
+
+        $items = $rows->map(function (PlayerLootDuplicate $row) use ($cards, $disenchant) {
+            $preview = $disenchant->resolve($row);
             if ($row->card_id) {
                 $c = $cards->get($row->card_id);
 
@@ -105,6 +109,7 @@ class InventoryController extends Controller
                     'stack_key' => $row->stack_key,
                     'kind' => 'card',
                     'quantity' => (int) $row->quantity,
+                    'disenchant_preview' => $preview,
                     'card' => $c ? [
                         'id' => $c->id,
                         'nome' => $c->nome,
@@ -128,6 +133,7 @@ class InventoryController extends Controller
                 'stack_key' => $row->stack_key,
                 'kind' => 'cosmetic',
                 'quantity' => (int) $row->quantity,
+                'disenchant_preview' => $preview,
                 'asset_category' => $row->asset_category,
                 'asset_key' => $row->asset_key,
             ];
@@ -142,7 +148,7 @@ class InventoryController extends Controller
         ]);
     }
 
-    public function disenchantDuplicate(Request $request): JsonResponse
+    public function disenchantDuplicate(Request $request, DuplicateDisenchantService $disenchant): JsonResponse
     {
         $data = $request->validate([
             'stack_key' => ['required', 'string'],
@@ -162,35 +168,13 @@ class InventoryController extends Controller
         }
 
         $user = $request->user();
-        $gainType = '';
-        $gainAmount = 0;
+        $reward = $disenchant->resolve($row);
+        $gainType = $reward['gain_type'];
+        $gainAmount = $reward['gain_amount'];
 
-        if ($row->card_id) {
-            $card = Card::query()->find($row->card_id);
-            $raridade = $card?->raridade ?? 'comum';
-
-            // 50% dos valores da loja de cartas (comum: 50, rara: 150, epica: 500, lendaria: 1500)
-            $map = [
-                'comum'    => 25,
-                'rara'     => 75,
-                'epica'    => 250,
-                'lendaria' => 750,
-            ];
-            $gainAmount = $map[$raridade] ?? 25;
-            $gainType = 'cristais';
-
+        if ($gainType === 'cristais') {
             $user->cristais = (int) $user->cristais + $gainAmount;
         } else {
-            // Cosméticos: 30% do valor do baú em moedas
-            $cat = $row->asset_category;
-            $map = [
-                'avatars'     => 330, // 30% de 1100
-                'match_boards'=> 390, // 30% de 1300
-                'card_backs'  => 330, // 30% de 1100
-            ];
-            $gainAmount = $map[$cat] ?? 300;
-            $gainType = 'moedas';
-
             $user->moedas = (int) $user->moedas + $gainAmount;
         }
 
@@ -203,8 +187,10 @@ class InventoryController extends Controller
 
         $user->save();
 
+        $labelMoeda = $gainType === 'cristais' ? 'Cristais' : 'Moedas';
+
         return response()->json([
-            'message' => "Desencantado com sucesso! Você recebeu +{$gainAmount} " . ($gainType === 'cristais' ? 'Cristais' : 'Moedas') . ".",
+            'message' => "Desfragmentado com sucesso! Você recebeu +{$gainAmount} {$labelMoeda}.",
             'gain_type' => $gainType,
             'gain_amount' => $gainAmount,
             'balance' => [

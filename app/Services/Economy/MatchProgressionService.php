@@ -18,6 +18,15 @@ class MatchProgressionService
             return;
         }
 
+        if ($this->modoSemRecompensasDeProgressao((string) $match->modo)) {
+            DB::table('match_progression_applied')->insert([
+                'match_id' => $match->id,
+                'applied_at' => now(),
+            ]);
+
+            return;
+        }
+
         $players = MatchPlayer::where('match_id', $match->id)->get();
         if ($players->isEmpty()) {
             return;
@@ -37,6 +46,11 @@ class MatchProgressionService
                 'applied_at' => now(),
             ]);
         });
+    }
+
+    private function modoSemRecompensasDeProgressao(string $modo): bool
+    {
+        return in_array(trim($modo), ['desafio', 'friendly'], true);
     }
 
     private function rewardUser(int $userId, bool $won): void

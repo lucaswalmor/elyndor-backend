@@ -11,11 +11,12 @@ return [
         'epica' => 1,
     ],
 
+    /** Sorteio por raridade (Fase 11): primeiro o tier, depois item uniforme dentro do tier. */
     'spin_weights_premium' => [
-        'comum' => 55,
-        'rara' => 25,
-        'epica' => 15,
-        'lendaria' => 5,
+        'comum' => 70,
+        'rara' => 20,
+        'epica' => 9,
+        'lendaria' => 1,
     ],
 
     'spin_weights_cristal_basico' => [
@@ -23,10 +24,10 @@ return [
     ],
 
     'weekly_offer_weights' => [
-        'comum' => 69.5,
+        'comum' => 70,
         'rara' => 20,
-        'epica' => 10,
-        'lendaria' => 0.5,
+        'epica' => 9,
+        'lendaria' => 1,
     ],
 
     'pity_epic_every' => 20,
