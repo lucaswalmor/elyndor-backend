@@ -52,6 +52,7 @@ class MatchViewBuilder
             if ($s === $slot) {
                 $row['cartas_na_mao'] = count($p['mao']);
                 $row['mao']           = $this->hydrateHand($p['mao']);
+                $row['pode_invocar']  = ! ($p['ja_atacou_neste_turno'] ?? false);
             } else {
                 $row['cartas_na_mao'] = count($p['mao']);
             }

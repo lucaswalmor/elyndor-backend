@@ -328,6 +328,10 @@ class MatchEngine
 
     private function invoke(array &$estado, int $slot, array $payload, array &$animacoes): void
     {
+        if ($estado['jogadores'][(string) $slot]['ja_atacou_neste_turno'] ?? false) {
+            throw new InvalidArgumentException('Não é possível invocar após realizar um ataque neste turno');
+        }
+
         $instanciaId = $payload['instancia_id'] ?? '';
         $hand = &$estado['jogadores'][(string) $slot]['mao'];
         $idx = $this->handIndex($hand, $instanciaId);
@@ -397,6 +401,7 @@ class MatchEngine
             throw new InvalidArgumentException('Deve atacar a unidade com provocação primeiro');
         }
 
+        $this->registrarAtaqueRealizadoNoTurno($estado, $slot);
         $this->unitAttack($estado, $slot, $attacker, $opp, $defender, $animacoes);
         $this->syncUnit($estado, $slot, $attacker);
     }
@@ -412,6 +417,8 @@ class MatchEngine
         if (! $attacker || ! $attacker['pode_atacar']) {
             throw new InvalidArgumentException('Unidade não pode atacar');
         }
+
+        $this->registrarAtaqueRealizadoNoTurno($estado, $slot);
 
         $dmg = $this->getUnitAttack($estado, $slot, $attacker);
         $estado['jogadores'][(string) $opp]['vida'] -= $dmg;
@@ -511,6 +518,7 @@ class MatchEngine
         $player['energia_maxima'] = $maxEnergy;
         $player['energia_atual']  = $maxEnergy + ($player['energia_bonus_turno'] ?? 0);
         $player['energia_bonus_turno'] = 0;
+        $player['ja_atacou_neste_turno'] = false;
 
         foreach ($estado['campo'][$slot] as &$u) {
             $hasCantAttack = false;
@@ -625,6 +633,11 @@ class MatchEngine
         }
 
         return null;
+    }
+
+    private function registrarAtaqueRealizadoNoTurno(array &$estado, int $slot): void
+    {
+        $estado['jogadores'][(string) $slot]['ja_atacou_neste_turno'] = true;
     }
 
     private function syncUnit(array &$estado, int $slot, array $unit): void
