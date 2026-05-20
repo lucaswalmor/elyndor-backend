@@ -248,7 +248,10 @@ class EffectResolver
         $unit['pode_atacar'] = $efeito['pode_atacar_imediato'] ?? true;
         $unit['foi_invocado_neste_turno'] = false;
         $bonus = (int) ($efeito['bonus_ataque'] ?? 0);
-        $unit['bonus_ataque'] = ($unit['bonus_ataque'] ?? 0) + $bonus;
+        if ($bonus > 0) {
+            // +ATK só no turno da invocação (ex.: Cão Vulcânico) — limpo em MatchEngine::endTurn
+            $unit['bonus_ataque_turno'] = ($unit['bonus_ataque_turno'] ?? 0) + $bonus;
+        }
         $animacoes[] = ['tipo' => 'charge', 'instancia_id' => $unit['instancia_id']];
         $this->syncToState($estado, $unit);
     }

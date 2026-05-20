@@ -354,6 +354,7 @@ class MatchEngine
         $card = CardCatalog::get($unit['card_id']);
         $base = $card?->ataque ?? 0;
         $base += $unit['bonus_ataque'] ?? 0;
+        $base += $unit['bonus_ataque_turno'] ?? 0;
         // FIX: passa a facção da unidade para respeitar filtro_faccao da Tesla
         $base += $this->effects->auraAttackBonus($estado, $slot, $card?->faccao);
         $base -= $this->effects->auraEnemyAttackDebuff($estado, $slot);
@@ -412,6 +413,7 @@ class MatchEngine
             'vida_atual' => $card->vida,
             'vida_max' => $card->vida,
             'bonus_ataque' => 0,
+            'bonus_ataque_turno' => 0,
             'pode_atacar' => false,
             'foi_invocado_neste_turno' => true,
             'silenciado' => false,
@@ -520,6 +522,11 @@ class MatchEngine
     private function endTurn(GameMatch $match, array &$estado, int $slot, array &$animacoes, bool $timeout = false): void
     {
         $this->tickStatusEffects($estado, $slot);
+
+        foreach ($estado['campo'][$slot] as &$unidadeFimTurno) {
+            $unidadeFimTurno['bonus_ataque_turno'] = 0;
+        }
+        unset($unidadeFimTurno);
 
         // Corvo / Oráculo: visão do deck inimigo só dura até o fim deste turno
         if (isset($estado['revelacoes'][(string) $slot])) {

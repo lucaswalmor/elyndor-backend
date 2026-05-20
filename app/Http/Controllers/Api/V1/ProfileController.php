@@ -86,7 +86,7 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function show(string $nickname): JsonResponse
+    public function show(Request $request, string $nickname): JsonResponse
     {
         $user = User::query()
             ->with(['playerLevel', 'avatar', 'streamerProfile'])

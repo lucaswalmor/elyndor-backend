@@ -178,7 +178,10 @@ class SubstituteBrain
         $cardId = (int) ($unit['card_id'] ?? 0);
         $catalog = CardCatalog::get($cardId);
 
-        return (float) ((int) ($catalog->ataque ?? 0) + (int) ($unit['vida_atual'] ?? 0) + (int) ($unit['bonus_ataque'] ?? 0));
+        return (float) ((int) ($catalog->ataque ?? 0)
+            + (int) ($unit['vida_atual'] ?? 0)
+            + (int) ($unit['bonus_ataque'] ?? 0)
+            + (int) ($unit['bonus_ataque_turno'] ?? 0));
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Services\Ranked\RankedService;
+use App\Services\Social\FriendshipService;
 use App\Support\UserMatchStats;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -51,6 +52,10 @@ class PublicProfileResource extends JsonResource
                 (bool) ($this->is_content_creator ?? false),
                 fn () => app(\App\Services\Streamer\StreamerInviteService::class)
                     ->formatarPerfil($this->streamerProfile),
+            ),
+            'friendship' => $this->when(
+                $request->user() !== null,
+                fn () => app(FriendshipService::class)->relationshipForViewer($request->user(), $this->resource),
             ),
         ];
     }

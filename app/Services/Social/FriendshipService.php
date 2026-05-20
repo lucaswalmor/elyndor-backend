@@ -44,6 +44,50 @@ class FriendshipService
             ->exists();
     }
 
+    /**
+     * Estado da relação para perfil público (visitante autenticado).
+     *
+     * @return array{status: string, friend_request_id: int|null}
+     */
+    public function relationshipForViewer(?User $viewer, User $target): array
+    {
+        if (! $viewer || $viewer->id === $target->id) {
+            return ['status' => 'self', 'friend_request_id' => null];
+        }
+
+        if ($this->blockedBetween($viewer, $target)) {
+            return ['status' => 'blocked', 'friend_request_id' => null];
+        }
+
+        if ($this->areFriends($viewer, $target)) {
+            return ['status' => 'friends', 'friend_request_id' => null];
+        }
+
+        $pending = FriendRequest::query()
+            ->where('status', FriendRequest::STATUS_PENDING)
+            ->where(function ($q) use ($viewer, $target) {
+                $q->where(function ($inner) use ($viewer, $target) {
+                    $inner->where('requester_id', $viewer->id)->where('addressee_id', $target->id);
+                })->orWhere(function ($inner) use ($viewer, $target) {
+                    $inner->where('requester_id', $target->id)->where('addressee_id', $viewer->id);
+                });
+            })
+            ->first();
+
+        if ($pending) {
+            $status = (int) $pending->requester_id === (int) $viewer->id
+                ? 'pending_outgoing'
+                : 'pending_incoming';
+
+            return [
+                'status' => $status,
+                'friend_request_id' => (int) $pending->id,
+            ];
+        }
+
+        return ['status' => 'none', 'friend_request_id' => null];
+    }
+
     /** @return \Illuminate\Database\Eloquent\Collection<int, User> */
     public function listFriends(User $me)
     {
