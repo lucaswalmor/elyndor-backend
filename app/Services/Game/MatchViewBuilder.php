@@ -75,11 +75,41 @@ class MatchViewBuilder
             'jogador_da_vez'   => $estado['jogador_da_vez'],
             'meu_player_id'    => $slot,
             'turno_deadline_em'=> $match->turno_deadline_em?->toIso8601String(),
+            'config_partida'   => $this->configPartidaParaCliente(),
             'jogadores'        => $players,
             'meu_campo'        => $this->hydrateField($estado['campo'][$slot], $estado, $slot),
             'campo_inimigo'    => $this->hydrateField($estado['campo'][$opp], $estado, $opp, false),
             'revelacoes'            => $this->hydrateRevelacoes($estado['revelacoes'][(string) $slot] ?? []),
             'revelacoes_expira_em'  => $estado['revelacoes_expira_em'][(string) $slot] ?? null,
+        ];
+    }
+
+    /**
+     * Regras numéricas de partida para o cliente (espelha config/game/match.php).
+     *
+     * @return array<string, mixed>
+     */
+    private function configPartidaParaCliente(): array
+    {
+        $energia = config('game.match.energy', []);
+        $timer = config('game.match.turn_timer', []);
+        $campo = config('game.match.field', []);
+
+        return [
+            'energia' => [
+                'inicio' => (int) ($energia['start'] ?? 1),
+                'maxima' => (int) ($energia['max'] ?? 8),
+                'ganho_por_turno' => (int) ($energia['gain_per_turn'] ?? 1),
+            ],
+            'timer_turno' => [
+                'base_segundos' => (int) ($timer['base_seconds'] ?? 60),
+                'incremento_por_turno' => (int) ($timer['increment_per_turn'] ?? 0),
+                'max_segundos' => (int) ($timer['max_seconds'] ?? 60),
+            ],
+            'campo' => [
+                'max_unidades' => (int) ($campo['max_units_per_player'] ?? 5),
+                'max_mao' => (int) ($campo['max_hand_size'] ?? 7),
+            ],
         ];
     }
 
