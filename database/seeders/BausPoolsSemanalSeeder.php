@@ -98,13 +98,13 @@ class BausPoolsSemanalSeeder extends Seeder
 
             /*
             |--------------------------------------------------------------------------
-            | Baús de cartas por facção (loja — moedas / premium)
+            | Baús de cartas por linhagem (loja — moedas / premium)
             |--------------------------------------------------------------------------
             */
-            'bau_cartas_infernais' => [
+            'bau_cartas_karuna' => [
                 'chest' => [
-                    'name' => 'Baú de cartas — Infernais',
-                    'description' => 'Uma carta aleatória entre as unidades da facção Infernais.',
+                    'name' => "Baú de cartas — Ka'runa",
+                    'description' => "Uma carta aleatória entre as unidades da linhagem Ka'runa.",
                     'cost_moedas' => 950,
                     'cost_cristais' => null,
                     'available_in_shop' => true,
@@ -121,10 +121,10 @@ class BausPoolsSemanalSeeder extends Seeder
                     ['asset_category' => 'card', 'asset_key' => 'rei-das-correntes', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 5],
                 ],
             ],
-            'bau_cartas_natureza' => [
+            'bau_cartas_ybyra' => [
                 'chest' => [
-                    'name' => 'Baú de cartas — Natureza',
-                    'description' => 'Uma carta aleatória entre as unidades da facção Natureza.',
+                    'name' => 'Baú de cartas — Ybyrá',
+                    'description' => 'Uma carta aleatória entre as unidades da linhagem Ybyrá.',
                     'cost_moedas' => 950,
                     'cost_cristais' => null,
                     'available_in_shop' => true,
@@ -141,10 +141,10 @@ class BausPoolsSemanalSeeder extends Seeder
                     ['asset_category' => 'card', 'asset_key' => 'hidra-do-pantano', 'display_tier' => 'rara', 'drop_weight' => 1, 'sort_order' => 5],
                 ],
             ],
-            'bau_cartas_mecanicos' => [
+            'bau_cartas_ferroveu' => [
                 'chest' => [
-                    'name' => 'Baú de cartas — Mecânicos',
-                    'description' => 'Uma carta aleatória entre as unidades da facção Mecânicos.',
+                    'name' => 'Baú de cartas — Ferrovéu',
+                    'description' => 'Uma carta aleatória entre as unidades da linhagem Ferrovéu.',
                     'cost_moedas' => 950,
                     'cost_cristais' => null,
                     'available_in_shop' => true,
@@ -161,10 +161,10 @@ class BausPoolsSemanalSeeder extends Seeder
                     ['asset_category' => 'card', 'asset_key' => 'nucleo-automato', 'display_tier' => 'epica', 'drop_weight' => 1, 'sort_order' => 5],
                 ],
             ],
-            'bau_cartas_mortos_vivos' => [
+            'bau_cartas_anhanga' => [
                 'chest' => [
-                    'name' => 'Baú de cartas — Mortos-vivos',
-                    'description' => 'Uma carta aleatória entre as unidades da facção Mortos-vivos.',
+                    'name' => 'Baú de cartas — Anhangá',
+                    'description' => 'Uma carta aleatória entre as unidades da linhagem Anhangá.',
                     'cost_moedas' => 950,
                     'cost_cristais' => null,
                     'available_in_shop' => true,
@@ -181,10 +181,10 @@ class BausPoolsSemanalSeeder extends Seeder
                     ['asset_category' => 'card', 'asset_key' => 'crianca-do-veu', 'display_tier' => 'comum', 'drop_weight' => 1, 'sort_order' => 5],
                 ],
             ],
-            'bau_cartas_celestiais' => [
+            'bau_cartas_orun' => [
                 'chest' => [
-                    'name' => 'Baú de cartas — Celestiais',
-                    'description' => 'Uma carta aleatória entre as unidades Celestiais (Vazio).',
+                    'name' => 'Baú de cartas — Orun',
+                    'description' => 'Uma carta aleatória entre as unidades da linhagem Orun.',
                     'cost_moedas' => 950,
                     'cost_cristais' => null,
                     'available_in_shop' => true,

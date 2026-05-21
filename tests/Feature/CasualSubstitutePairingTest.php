@@ -25,7 +25,7 @@ class CasualSubstitutePairingTest extends TestCase
         $card = Card::query()->create([
             'nome' => 'Carta teste',
             'slug' => 'carta-teste-casual-bot',
-            'faccao' => 'natureza',
+            'linhagem' => 'ybyra',
             'raridade' => 'comum',
             'custo' => 2,
             'ataque' => 2,

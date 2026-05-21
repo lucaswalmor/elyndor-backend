@@ -34,7 +34,7 @@ class CommunityDeckTest extends TestCase
             $cartas->push(Card::query()->create([
                 'nome' => "Carta teste {$indice}",
                 'slug' => "carta-comunidade-{$indice}",
-                'faccao' => 'infernais',
+                'linhagem' => 'karuna',
                 'raridade' => 'comum',
                 'custo' => 2,
                 'ataque' => 2,
@@ -54,7 +54,7 @@ class CommunityDeckTest extends TestCase
             'deck_id' => $deck->id,
             'nome' => 'Deck Publicado',
             'descricao' => 'Build da comunidade',
-            'faccao_principal' => 'infernais',
+            'linhagem_principal' => 'karuna',
             'tags' => ['agressivo'],
         ]);
 

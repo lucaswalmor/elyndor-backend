@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Card extends Model
 {
     protected $fillable = [
-        'nome', 'slug', 'descricao', 'faccao', 'classe', 'raridade', 'tipo',
+        'nome', 'slug', 'descricao', 'linhagem', 'classe', 'raridade', 'tipo',
         'custo', 'ataque', 'vida', 'imagem', 'imagem_path', 'ativo', 'colecionavel',
         'versao_balanceamento',
     ];

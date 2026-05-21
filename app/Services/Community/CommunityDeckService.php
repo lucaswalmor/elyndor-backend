@@ -114,7 +114,7 @@ class CommunityDeckService
         int $deckId,
         string $nome,
         string $descricao,
-        string $faccaoPrincipal,
+        string $linhagemPrincipal,
         array $tags,
     ): array {
         $minPartidas = (int) config('game.community_decks.min_matches_to_publish');
@@ -153,15 +153,15 @@ class CommunityDeckService
             $this->moderacao->validarTextoPublico($descricao, 'Descrição');
         }
 
-        $faccaoPrincipal = strtolower(trim($faccaoPrincipal));
-        if (! in_array($faccaoPrincipal, config('game.community_decks.allowed_factions', []), true)) {
-            throw new InvalidArgumentException('Facção principal inválida.');
+        $linhagemPrincipal = strtolower(trim($linhagemPrincipal));
+        if (! in_array($linhagemPrincipal, config('game.community_decks.allowed_lineages', []), true)) {
+            throw new InvalidArgumentException('Linhagem principal inválida.');
         }
 
         $tags = $this->normalizarTags($tags);
         $versao = $this->versaoAtualJogo();
 
-        return DB::transaction(function () use ($usuario, $deckPessoal, $nome, $descricao, $faccaoPrincipal, $tags, $versao, $deckResumo) {
+        return DB::transaction(function () use ($usuario, $deckPessoal, $nome, $descricao, $linhagemPrincipal, $tags, $versao, $deckResumo) {
             $elyCode = $this->gerarElyCodeUnico();
 
             $publicado = CommunityDeck::create([
@@ -169,7 +169,7 @@ class CommunityDeckService
                 'source_deck_id' => $deckPessoal->id,
                 'nome' => $nome,
                 'descricao' => $descricao !== '' ? $descricao : null,
-                'faccao_principal' => $faccaoPrincipal,
+                'linhagem_principal' => $linhagemPrincipal,
                 'game_version' => $versao,
                 'ely_code' => $elyCode,
                 'is_streamer_deck' => (bool) $usuario->is_content_creator,
@@ -366,8 +366,8 @@ class CommunityDeckService
     /** @param  \Illuminate\Database\Eloquent\Builder<CommunityDeck>  $query */
     private function aplicarFiltros($query, array $filtros): void
     {
-        if (! empty($filtros['faccao'])) {
-            $query->where('faccao_principal', strtolower((string) $filtros['faccao']));
+        if (! empty($filtros['linhagem'])) {
+            $query->where('linhagem_principal', strtolower((string) $filtros['linhagem']));
         }
 
         if (! empty($filtros['tag'])) {
@@ -413,7 +413,7 @@ class CommunityDeckService
                     'card_id' => $linha->card_id,
                     'quantidade' => $necessario,
                     'nome' => $card?->nome,
-                    'faccao' => $card?->faccao,
+                    'linhagem' => $card?->linhagem,
                     'raridade' => $card?->raridade,
                     'custo' => $card?->custo,
                     'ataque' => $card?->ataque,
@@ -443,7 +443,7 @@ class CommunityDeckService
             'id' => $deck->id,
             'nome' => $deck->nome,
             'descricao' => $deck->descricao,
-            'faccao_principal' => $deck->faccao_principal,
+            'linhagem_principal' => $deck->linhagem_principal,
             'tags' => $deck->tags ?? [],
             'game_version' => $deck->game_version,
             'game_version_atual' => $versaoAtual,

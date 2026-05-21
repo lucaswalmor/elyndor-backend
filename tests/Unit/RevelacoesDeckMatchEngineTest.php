@@ -20,7 +20,7 @@ class RevelacoesDeckMatchEngineTest extends TestCase
         $cartaRevelada = Card::query()->create([
             'nome' => 'Carta Topo',
             'slug' => 'carta-topo-teste',
-            'faccao' => 'natureza',
+            'linhagem' => 'ybyra',
             'raridade' => 'comum',
             'custo' => 1,
             'ataque' => 1,
@@ -104,7 +104,7 @@ class RevelacoesDeckMatchEngineTest extends TestCase
         $cartaRevelada = Card::query()->create([
             'nome' => 'Carta Expirada',
             'slug' => 'carta-expirada-teste',
-            'faccao' => 'natureza',
+            'linhagem' => 'ybyra',
             'raridade' => 'comum',
             'custo' => 1,
             'ataque' => 1,

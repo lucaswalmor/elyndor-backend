@@ -95,7 +95,7 @@ class MatchViewBuilder
                 'custo'       => $card?->custo,
                 'ataque'      => $card?->ataque,
                 'vida'        => $card?->vida,
-                'faccao'      => $card?->faccao,
+                'linhagem'      => $card?->linhagem,
                 'imagem_path' => $card?->imagem_path,
                 'skills'      => array_map(fn ($s) => (array) $s, $card?->skills ?? []),
             ];
@@ -113,7 +113,7 @@ class MatchViewBuilder
                 'custo'       => $card?->custo,
                 'ataque'      => $card?->ataque,
                 'vida'        => $card?->vida,
-                'faccao'      => $card?->faccao,
+                'linhagem'      => $card?->linhagem,
                 'imagem_path' => $card?->imagem_path,
                 'skills'      => array_map(fn ($s) => (array) $s, $card?->skills ?? []),
             ]);
@@ -140,7 +140,7 @@ class MatchViewBuilder
                 'nome'                     => $card?->nome,
                 'imagem_path'              => $card?->imagem_path,
                 'descricao'                => $card?->descricao,
-                'faccao'                   => $card?->faccao,
+                'linhagem'                   => $card?->linhagem,
                 'skills'                   => array_map(fn ($s) => (array) $s, $card?->skills ?? []),
             ];
 

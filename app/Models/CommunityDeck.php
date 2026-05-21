@@ -16,7 +16,7 @@ class CommunityDeck extends Model
         'source_deck_id',
         'nome',
         'descricao',
-        'faccao_principal',
+        'linhagem_principal',
         'game_version',
         'ely_code',
         'is_streamer_deck',

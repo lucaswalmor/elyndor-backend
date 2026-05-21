@@ -4,7 +4,7 @@ return [
     'max_publications_per_user' => 5,
     'min_matches_to_publish' => 10,
     'recent_days' => 7,
-    'allowed_factions' => ['infernais', 'natureza', 'mecanicos', 'mortos-vivos', 'celestiais'],
+    'allowed_lineages' => ['karuna', 'ybyra', 'ferroveu', 'anhanga', 'orun'],
     'allowed_tags' => [
         'agressivo',
         'controle',

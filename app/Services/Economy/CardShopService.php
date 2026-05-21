@@ -24,7 +24,7 @@ class CardShopService
         return Card::query()
             ->where('ativo', true)
             ->where('colecionavel', true)
-            ->orderBy('faccao')
+            ->orderBy('linhagem')
             ->orderBy('custo')
             ->get()
             ->map(function (Card $card) use ($owned, $prices) {
@@ -35,7 +35,7 @@ class CardShopService
                     'id' => $card->id,
                     'nome' => $card->nome,
                     'slug' => $card->slug,
-                    'faccao' => $card->faccao,
+                    'linhagem' => $card->linhagem,
                     'raridade' => $r,
                     'custo' => $card->custo,
                     'preco_cristais' => $price,

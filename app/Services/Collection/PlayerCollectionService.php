@@ -114,7 +114,7 @@ class PlayerCollectionService
             ->where('ativo', true)
             ->where('colecionavel', true)
             ->with('skills')
-            ->orderBy('faccao')
+            ->orderBy('linhagem')
             ->orderBy('custo')
             ->get()
             ->map(fn (Card $card) => [
@@ -122,7 +122,7 @@ class PlayerCollectionService
                 'nome' => $card->nome,
                 'slug' => $card->slug,
                 'descricao' => $card->descricao,
-                'faccao' => $card->faccao,
+                'linhagem' => $card->linhagem,
                 'classe' => $card->classe,
                 'raridade' => $card->raridade,
                 'tipo' => $card->tipo,

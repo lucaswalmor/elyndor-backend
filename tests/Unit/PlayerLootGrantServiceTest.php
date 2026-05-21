@@ -20,7 +20,7 @@ class PlayerLootGrantServiceTest extends TestCase
         $carta = Card::query()->create([
             'nome' => 'Teste Grant',
             'slug' => 'carta-grant-teste',
-            'faccao' => 'natureza',
+            'linhagem' => 'ybyra',
             'raridade' => 'comum',
             'custo' => 1,
             'ataque' => 1,

@@ -385,8 +385,7 @@ class MatchEngine
         $base = $card?->ataque ?? 0;
         $base += $unit['bonus_ataque'] ?? 0;
         $base += $unit['bonus_ataque_turno'] ?? 0;
-        // FIX: passa a facção da unidade para respeitar filtro_faccao da Tesla
-        $base += $this->effects->auraAttackBonus($estado, $slot, $card?->faccao);
+        $base += $this->effects->auraAttackBonus($estado, $slot, $card?->linhagem);
         $base -= $this->effects->auraEnemyAttackDebuff($estado, $slot);
 
         foreach ($unit['efeitos'] ?? [] as $fx) {

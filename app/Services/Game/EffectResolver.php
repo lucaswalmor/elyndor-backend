@@ -183,7 +183,7 @@ class EffectResolver
         return false;
     }
 
-    public function auraAttackBonus(array $estado, int $slot, ?string $targetFaccao = null): int
+    public function auraAttackBonus(array $estado, int $slot, ?string $targetLinhagem = null): int
     {
         $bonus = 0;
         foreach ($estado['campo'][$slot] as $u) {
@@ -193,9 +193,8 @@ class EffectResolver
             }
             foreach ($card->skills as $skill) {
                 if (($skill->efeito['tipo'] ?? '') === 'aura_buff_ataque') {
-                    // FIX: respeitar filtro_faccao (Tesla só buff mecânicos)
-                    $filtro = $skill->efeito['filtro_faccao'] ?? null;
-                    if ($filtro && $targetFaccao && $filtro !== $targetFaccao) {
+                    $filtro = $skill->efeito['filtro_linhagem'] ?? null;
+                    if ($filtro && $targetLinhagem && $filtro !== $targetLinhagem) {
                         continue;
                     }
                     $bonus += (int) ($skill->efeito['valor'] ?? 0);

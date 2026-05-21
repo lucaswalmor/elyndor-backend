@@ -18,7 +18,7 @@ class CommunityDeckController extends Controller
     {
         $filtros = [
             'sort' => $request->query('sort', 'popular'),
-            'faccao' => $request->query('faccao'),
+            'linhagem' => $request->query('linhagem'),
             'tag' => $request->query('tag'),
             'recent' => $request->boolean('recent'),
             'streamer_only' => $request->boolean('streamer_only'),
@@ -55,7 +55,7 @@ class CommunityDeckController extends Controller
             'deck_id' => 'required|integer',
             'nome' => 'required|string|max:80',
             'descricao' => 'nullable|string|max:500',
-            'faccao_principal' => 'required|string|max:40',
+            'linhagem_principal' => 'required|string|max:40',
             'tags' => 'sometimes|array',
             'tags.*' => 'string|max:30',
         ]);
@@ -66,7 +66,7 @@ class CommunityDeckController extends Controller
                 (int) $dados['deck_id'],
                 $dados['nome'],
                 (string) ($dados['descricao'] ?? ''),
-                $dados['faccao_principal'],
+                $dados['linhagem_principal'],
                 $dados['tags'] ?? [],
             );
         } catch (InvalidArgumentException $exception) {

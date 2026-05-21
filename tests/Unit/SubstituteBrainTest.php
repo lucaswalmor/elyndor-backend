@@ -20,7 +20,7 @@ class SubstituteBrainTest extends TestCase
         $card = Card::query()->create([
             'nome' => 'Teste Bot',
             'slug' => 'teste-bot-unit',
-            'faccao' => 'natureza',
+            'linhagem' => 'ybyra',
             'raridade' => 'comum',
             'custo' => 3,
             'ataque' => 5,

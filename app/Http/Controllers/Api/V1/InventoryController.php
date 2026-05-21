@@ -115,14 +115,14 @@ class InventoryController extends Controller
                         'nome' => $c->nome,
                         'slug' => $c->slug,
                         'raridade' => $c->raridade,
-                        'faccao' => $c->faccao,
+                        'linhagem' => $c->linhagem,
                         'imagem_path' => $c->imagem_path,
                     ] : [
                         'id' => (int) $row->card_id,
                         'nome' => '(carta removida)',
                         'slug' => null,
                         'raridade' => 'comum',
-                        'faccao' => null,
+                        'linhagem' => null,
                         'imagem_path' => null,
                     ],
                 ];

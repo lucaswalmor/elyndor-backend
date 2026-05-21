@@ -21,7 +21,7 @@ class CaoVulcanicoBonusAtaqueTurnoTest extends TestCase
         $cao = Card::query()->create([
             'nome' => 'Cão Vulcânico',
             'slug' => 'cao-vulcanico-teste',
-            'faccao' => 'infernais',
+            'linhagem' => 'karuna',
             'raridade' => 'comum',
             'custo' => 2,
             'ataque' => 2,
@@ -105,7 +105,7 @@ class CaoVulcanicoBonusAtaqueTurnoTest extends TestCase
         $cao = Card::query()->create([
             'nome' => 'Cão Vulcânico',
             'slug' => 'cao-vulcanico-charge',
-            'faccao' => 'infernais',
+            'linhagem' => 'karuna',
             'raridade' => 'comum',
             'custo' => 2,
             'ataque' => 3,

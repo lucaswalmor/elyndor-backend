@@ -207,7 +207,7 @@ class DeckService
                 'quantidade' => $dc->quantidade,
                 'nome' => $dc->card?->nome,
                 'raridade' => $raridade,
-                'faccao' => $dc->card?->faccao,
+                'linhagem' => $dc->card?->linhagem,
                 'custo' => $dc->card?->custo,
                 'ataque' => $dc->card?->ataque,
                 'vida' => $dc->card?->vida,
