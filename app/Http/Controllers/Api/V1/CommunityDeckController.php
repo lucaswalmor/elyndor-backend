@@ -23,6 +23,7 @@ class CommunityDeckController extends Controller
             'recent' => $request->boolean('recent'),
             'streamer_only' => $request->boolean('streamer_only'),
             'can_copy' => $request->boolean('can_copy'),
+            'criador' => $request->query('criador'),
             'per_page' => $request->query('per_page'),
         ];
 

@@ -36,7 +36,10 @@ class CommunityDeckService
     public function listar(?User $viewer, array $filtros): array
     {
         $query = CommunityDeck::query()
-            ->with(['user:id,nickname,avatar_id,is_content_creator', 'user.avatar:id,slug,label,image_file'])
+            ->with([
+                'user:id,nickname,avatar_id,is_content_creator,profile_bg_slug',
+                'user.avatar:id,slug,label,image_file',
+            ])
             ->whereNull('deleted_at');
 
         $this->aplicarFiltros($query, $filtros);
@@ -83,7 +86,11 @@ class CommunityDeckService
         $ownedMap = $this->collection->ownedMap($viewer);
 
         return $this->formatarResumo(
-            $deck->load(['deckCards.card', 'user.avatar']),
+            $deck->load([
+                'deckCards.card',
+                'user:id,nickname,avatar_id,is_content_creator,profile_bg_slug',
+                'user.avatar',
+            ]),
             $viewer,
             $this->versaoAtualJogo(),
             $ownedMap,
@@ -383,6 +390,13 @@ class CommunityDeckService
             $dias = (int) config('game.community_decks.recent_days', 7);
             $query->where('published_at', '>=', now()->subDays($dias));
         }
+
+        if (! empty($filtros['criador'])) {
+            $apelido = trim((string) $filtros['criador']);
+            if ($apelido !== '') {
+                $query->whereHas('user', fn ($consulta) => $consulta->where('nickname', $apelido));
+            }
+        }
     }
 
     /**
@@ -460,6 +474,7 @@ class CommunityDeckService
                 'is_content_creator' => (bool) ($deck->user?->is_content_creator),
                 'avatar_slug' => $deck->user?->avatar?->slug,
                 'avatar_image_file' => $deck->user?->avatar?->image_file,
+                'profile_bg_slug' => $deck->user?->profile_bg_slug ?? 'padrao',
             ],
             'cartas_owned' => $totalPossui,
             'cartas_total' => $totalNecessario,
