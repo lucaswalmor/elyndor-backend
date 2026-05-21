@@ -57,6 +57,7 @@ class MatchInitializer
             'energia_maxima' => config('game.match.energy.start', 3),
             'energia_reservada' => 0,
             'energia_bonus_turno' => 0,
+            'efeitos' => [],
             'ja_atacou_neste_turno' => false,
             'mao' => $mao,
             'deck' => $deck,

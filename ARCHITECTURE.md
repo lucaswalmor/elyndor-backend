@@ -1,7 +1,7 @@
 # Arquitetura Laravel — Elyndor
 
 Contrato de API: `../roadmap/api_contratos.md`  
-Schema: `../roadmap/schema_banco.md`  
+Schema: `../roadmap/banco_dados.md`  
 Fases de implementação: `../fases_desenvolvimento.md`
 
 ---

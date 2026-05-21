@@ -41,6 +41,11 @@ class SubstituteBrain
             return ['acao' => 'finalizar_turno'];
         }
 
+        $invocacaoPrioritaria = $this->melhorInvocacaoSeDevePreencherCampo($estado, $botSlot, $candidates);
+        if ($invocacaoPrioritaria !== null) {
+            return $invocacaoPrioritaria;
+        }
+
         return $this->chooseCandidate($candidates, $profile);
     }
 
@@ -143,6 +148,63 @@ class SubstituteBrain
         ];
 
         return $candidates;
+    }
+
+    /**
+     * Invoca antes de atacar para não bloquear jogadas com `ja_atacou_neste_turno`.
+     *
+     * @param  list<array{payload: array<string, mixed>, score: float}>  $candidates
+     * @return array<string, mixed>|null
+     */
+    private function melhorInvocacaoSeDevePreencherCampo(array $estado, int $botSlot, array $candidates): ?array
+    {
+        $fieldMax = (int) config('game.match.field.max_units_per_player', 5);
+        $campoCount = count($estado['campo'][$botSlot] ?? []);
+        if ($campoCount >= $fieldMax) {
+            return null;
+        }
+
+        $energia = (int) ($estado['jogadores'][(string) $botSlot]['energia_atual'] ?? 0);
+        $invocacoes = array_values(array_filter(
+            $candidates,
+            fn ($candidate) => ($candidate['payload']['acao'] ?? '') === 'invocar'
+        ));
+        if ($invocacoes === []) {
+            return null;
+        }
+
+        $acaoCritica = array_values(array_filter(
+            $candidates,
+            fn ($candidate) => ($candidate['payload']['acao'] ?? '') !== 'finalizar_turno'
+                && ($candidate['score'] ?? 0.0) >= 400.0
+        ));
+        if ($acaoCritica !== []) {
+            return null;
+        }
+
+        $custoMinimo = null;
+        foreach ($invocacoes as $invocacao) {
+            $instanciaMao = (string) ($invocacao['payload']['instancia_id'] ?? '');
+            foreach ($estado['jogadores'][(string) $botSlot]['mao'] ?? [] as $cartaMao) {
+                if ((string) ($cartaMao['instancia_id'] ?? '') !== $instanciaMao) {
+                    continue;
+                }
+                $catalogo = CardCatalog::get((int) ($cartaMao['card_id'] ?? 0));
+                if (! $catalogo) {
+                    continue;
+                }
+                $custo = (int) ($catalogo->custo ?? 999);
+                $custoMinimo = $custoMinimo === null ? $custo : min($custoMinimo, $custo);
+            }
+        }
+
+        if ($custoMinimo === null || $energia < $custoMinimo) {
+            return null;
+        }
+
+        usort($invocacoes, fn ($esquerda, $direita) => $direita['score'] <=> $esquerda['score']);
+
+        return $invocacoes[0]['payload'];
     }
 
     /**

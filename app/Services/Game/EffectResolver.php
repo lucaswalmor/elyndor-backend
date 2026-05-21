@@ -114,8 +114,12 @@ class EffectResolver
                 $this->addEffect($estado, $alvo, 'debuff_ataque', $efeito, $animacoes);
                 break;
             case 'veneno':
-                // FIX: aplica no ALVO (defensor), não no atacante
-                $this->addEffect($estado, $alvo, 'veneno', $efeito, $animacoes);
+                if ($alvo !== null) {
+                    $this->addEffect($estado, $alvo, 'veneno', $efeito, $animacoes);
+                } elseif (array_key_exists('dano', $context)) {
+                    $slotOponente = $slot === 1 ? 2 : 1;
+                    $this->addPlayerEffect($estado, $slotOponente, 'veneno', $efeito, $animacoes);
+                }
                 break;
             case 'silencio':
                 $this->silence($estado, $alvo, $animacoes);
@@ -261,6 +265,20 @@ class EffectResolver
         foreach ($estado['campo'][$opp] as &$u) {
             $this->engine->damageUnit($estado, $opp, $u, $dmg, $animacoes);
         }
+    }
+
+    private function addPlayerEffect(array &$estado, int $slot, string $tipo, array $efeito, array &$animacoes): void
+    {
+        $jogador = &$estado['jogadores'][(string) $slot];
+        if (! isset($jogador['efeitos']) || ! is_array($jogador['efeitos'])) {
+            $jogador['efeitos'] = [];
+        }
+        $jogador['efeitos'][] = [
+            'tipo' => $tipo,
+            'valor' => $efeito['valor'] ?? 1,
+            'duracao' => $efeito['duracao'] ?? 1,
+        ];
+        $animacoes[] = ['tipo' => 'efeito_jogador', 'player' => $slot, 'efeito' => $tipo];
     }
 
     private function addEffect(array &$estado, ?array &$unit, string $tipo, array $efeito, array &$animacoes): void

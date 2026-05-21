@@ -551,6 +551,7 @@ class MatchEngine
     private function endTurn(GameMatch $match, array &$estado, int $slot, array &$animacoes, bool $timeout = false): void
     {
         $this->tickStatusEffects($estado, $slot);
+        $this->tickPlayerStatusEffects($estado, $slot);
 
         foreach ($estado['campo'][$slot] as &$unidadeFimTurno) {
             $unidadeFimTurno['bonus_ataque_turno'] = 0;
@@ -637,6 +638,33 @@ class MatchEngine
         }
 
         $this->tickPoison($estado, $slot, $animacoes);
+        $this->tickPlayerPoison($estado, $slot, $animacoes);
+    }
+
+    private function tickPlayerStatusEffects(array &$estado, int $slot): void
+    {
+        $jogador = &$estado['jogadores'][(string) $slot];
+        $restantes = [];
+        foreach ($jogador['efeitos'] ?? [] as $efeito) {
+            $efeito['duracao'] = ($efeito['duracao'] ?? 1) - 1;
+            if ($efeito['duracao'] > 0) {
+                $restantes[] = $efeito;
+            }
+        }
+        $jogador['efeitos'] = $restantes;
+    }
+
+    private function tickPlayerPoison(array &$estado, int $slot, array &$animacoes): void
+    {
+        $jogador = &$estado['jogadores'][(string) $slot];
+        foreach ($jogador['efeitos'] ?? [] as $efeito) {
+            if (($efeito['tipo'] ?? '') !== 'veneno') {
+                continue;
+            }
+            $danoVeneno = (int) ($efeito['valor'] ?? 1);
+            $jogador['vida'] -= $danoVeneno;
+            $animacoes[] = ['tipo' => 'dano_jogador', 'player' => $slot, 'valor' => $danoVeneno, 'origem' => 'veneno'];
+        }
     }
 
     private function tickStatusEffects(array &$estado, int $slot): void
