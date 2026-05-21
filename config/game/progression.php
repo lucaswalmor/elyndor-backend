@@ -78,8 +78,8 @@ return [
         'size' => 15,
         'copy_limits' => [
             'comum' => 3,
-            'rara' => 2,
-            'epica' => 1,
+            'rara' => 5,
+            'epica' => 2,
             'lendaria' => 1,
         ],
     ],

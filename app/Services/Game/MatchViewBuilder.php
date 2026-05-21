@@ -2,12 +2,19 @@
 
 namespace App\Services\Game;
 
+use App\Enums\MatchStatus;
 use App\Models\GameMatch;
+use App\Models\RankedMatchOutcome;
 use App\Models\User;
+use App\Services\Ranked\RankedService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 class MatchViewBuilder
 {
+    public function __construct(
+        private RankedService $ranked,
+    ) {}
+
     public function forUser(GameMatch $match, User $user): array
     {
         if ($match->status === \App\Enums\MatchStatus::Aguardando) {
@@ -66,8 +73,9 @@ class MatchViewBuilder
             $players[(string) $s] = $row;
         }
 
-        return [
+        $payload = [
             'id'               => $match->id,
+            'modo'             => $match->modo,
             'status'           => $match->status->value,
             'arena_match_board_slug' => $match->arena_match_board_slug,
             'vencedor_id'      => $match->vencedor_id,
@@ -81,6 +89,47 @@ class MatchViewBuilder
             'campo_inimigo'    => $this->hydrateField($estado['campo'][$opp], $estado, $opp, false),
             'revelacoes'            => $this->hydrateRevelacoes($estado['revelacoes'][(string) $slot] ?? []),
             'revelacoes_expira_em'  => $estado['revelacoes_expira_em'][(string) $slot] ?? null,
+        ];
+
+        $resultadoRanqueada = $this->resultadoRanqueadaParaUsuario($match, $user);
+        if ($resultadoRanqueada !== null) {
+            $payload['resultado_ranqueada'] = $resultadoRanqueada;
+        }
+
+        return $payload;
+    }
+
+    /** @return array<string, mixed>|null */
+    private function resultadoRanqueadaParaUsuario(GameMatch $match, User $user): ?array
+    {
+        if ($match->modo !== 'ranqueada') {
+            return null;
+        }
+
+        if (! in_array($match->status, [MatchStatus::Finalizada, MatchStatus::Abandonada], true)) {
+            return null;
+        }
+
+        $outcome = RankedMatchOutcome::query()
+            ->where('match_id', $match->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $outcome) {
+            return null;
+        }
+
+        $movimentoElo = $this->ranked->eloBracketMovementBetweenSnapshots(
+            (int) $outcome->pontos_antes,
+            (int) $outcome->pontos_depois,
+        );
+
+        return [
+            'venceu' => (bool) $outcome->venceu,
+            'delta' => (int) $outcome->delta,
+            'pontos_antes' => (int) $outcome->pontos_antes,
+            'pontos_depois' => (int) $outcome->pontos_depois,
+            'movimento_elo' => $movimentoElo,
         ];
     }
 
