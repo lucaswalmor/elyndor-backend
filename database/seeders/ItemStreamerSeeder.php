@@ -117,7 +117,7 @@ class ItemStreamerSeeder extends Seeder
     {
         $concessoes = [
             [
-                'user_id' => 16,
+                'user_id' => 1,
                 'rotulo' => 'BoomerangBR',
                 'versos' => !empty(self::VERSOS_ESPECIFICOS) ? self::VERSOS_ESPECIFICOS : self::TODOS_VERSOS,
                 'tabuleiros' => !empty(self::TABULEIROS_ESPECIFICOS) ? self::TABULEIROS_ESPECIFICOS : self::TODOS_TABULEIROS,
