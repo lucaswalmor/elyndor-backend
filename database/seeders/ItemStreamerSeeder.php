@@ -10,48 +10,130 @@ use InvalidArgumentException;
 /**
  * Prémios manuais (streamers, beta, suporte) — mesma gravação que abrir um baú.
  *
- * - cartas → player_cards (+ repetidas se acima do limite de cópias)
- * - verso / tabuleiro / fundo → player_cosmetic_unlocks (+ repetidas se já tiver)
- *
- * 1. Rótulo em config/game/cosmetics.php (cosméticos)
- * 2. Carta deve existir em cards.slug (seed CartasSeeder)
- * 3. Edita CONCESSOES e executa: php artisan db:seed --class=ItemStreamerSeeder
- *
- * Não precisa da pasta frontend no servidor (API Hostinger / frontend Vercel).
+ * Pacotes prontos: use self::TODOS_VERSOS, self::TODOS_TABULEIROS, etc.
+ * Ao adicionar cosmético novo, atualiza aqui e em config/game/cosmetics.php.
+ * Ao adicionar carta nova, atualiza self::TODAS_CARTAS (ou CartasSeeder).
  */
 class ItemStreamerSeeder extends Seeder
 {
+    /** Todos os versos (card_back) — espelha config/game/cosmetics.php + exclusivos */
+    private const TODOS_VERSOS = [
+        'verso_padrao',
+        'verso_comum',
+        'verso_da_carta',
+        'verso_astra_veil',
+        'verso_infernais',
+        'verso_natureza',
+        'verso_ferrox',
+        'verso_nocthar',
+        'verso_sylvaris',
+        'verso_vulkaris',
+        'verso_premium_cristal',
+        'verso_premium_jade',
+        'verso_premium_obsidiana',
+        'verso_premium_ouro',
+        'verso_beta_tester',
+        'verso_brasil_copa_2026',
+        'versor_boomerangbr',
+    ];
+
+    /** Todos os tabuleiros (match_board) */
+    private const TODOS_TABULEIROS = [
+        'tabuleiro_padrao_v2',
+        'tabuleiro_astra_veil',
+        'tabuleiro_ferrox',
+        'tabuleiro_nocthar',
+        'tabuleiro_sylvaris',
+        'tabuleiro_vulkaris',
+        'tabuleiro_premium_cristal',
+        'tabuleiro_premium_jade',
+        'tabuleiro_premium_obsidiana',
+        'tabuleiro_premium_ouro',
+        'tabuleiro_brasil_copa_2026',
+    ];
+
+    /** Todos os fundos de perfil (profile_bg) */
+    private const TODOS_FUNDOS_PERFIL = [
+        'ui_bg_profile_standard',
+        'ui_bg_profile_infernal',
+        'ui_bg_profile_celestial',
+        'ui_bg_profile_crystal',
+        'ui_bg_profile_gold',
+        'ui_bg_profile_heaven',
+        'ui_bg_profile_jade',
+        'ui_bg_profile_mechanics',
+        'ui_bg_profile_nature',
+        'ui_bg_profile_obsidian',
+        'ui_bg_profile_undead',
+    ];
+
+    /** Todas as cartas colecionáveis (slug) — espelha CartasSeeder */
+    private const TODAS_CARTAS = [
+        'carniceiro-de-brasas',
+        'cao-vulcanico',
+        'bruxa-cinzenta',
+        'tita-magmatico',
+        'morcego-igneo',
+        'rei-das-correntes',
+        'guardiao-do-musgo',
+        'aranha-lunar',
+        'espirito-da-raiz',
+        'sapo-toxico',
+        'cervo-fantasma',
+        'hidra-do-pantano',
+        'drone-sentinela',
+        'executor-de-ferro',
+        'engenheira-tesla',
+        'aranha-de-sucata',
+        'tremor-mk-ii',
+        'nucleo-automato',
+        'cavaleiro-sem-face',
+        'costureira-macabra',
+        'corvo-funerario',
+        'monge-apodrecido',
+        'gigante-ossuario',
+        'crianca-do-veu',
+        'oraculo-solar',
+        'aberracao-do-vazio',
+        'serafim-partido',
+        'eclipse-vivo',
+        'navegante-astral',
+        'devorador-de-estrelas',
+    ];
+
     /**
      * @var list<array{
      *   user_id: int,
      *   rotulo: string,
+     *   versos?: list<string>,
+     *   tabuleiros?: list<string>,
+     *   fundos_perfil?: list<string>,
+     *   cartas?: list<string>,
      *   verso?: string|null,
      *   tabuleiro?: string|null,
      *   fundo_perfil?: string|null,
-     *   cartas?: list<string>,
      * }>
      */
     private const CONCESSOES = [
         [
-            'user_id' => 1,
+            'user_id' => 16,
             'rotulo' => 'BoomerangBR',
-            'verso' => 'versor_boomerangbr',
-            'tabuleiro' => null,
-            'cartas' => [],
+            'versos' => self::TODOS_VERSOS,
+            'tabuleiros' => self::TODOS_TABULEIROS,
+            'fundos_perfil' => self::TODOS_FUNDOS_PERFIL,
+            'cartas' => self::TODAS_CARTAS,
         ],
-        [
-            'user_id' => 1,
-            'rotulo' => 'Brasil Copa 2026 (cosméticos)',
-            'verso' => 'verso_brasil_copa_2026',
-            'tabuleiro' => 'tabuleiro_brasil_copa_2026',
-            'cartas' => [],
-        ],
-        // Exemplo com cartas:
+        // Liberar tudo — descomenta e ajusta user_id:
         // [
-        //     'user_id' => 2,
-        //     'rotulo' => 'Pacote cartas',
-        //     'cartas' => ['corvo-funerario', 'oraculo-solar'],
+        //     'user_id' => 99,
+        //     'rotulo' => 'Conta teste — tudo',
+        //     'versos' => self::TODOS_VERSOS,
+        //     'tabuleiros' => self::TODOS_TABULEIROS,
+        //     'fundos_perfil' => self::TODOS_FUNDOS_PERFIL,
+        //     'cartas' => self::TODAS_CARTAS,
         // ],
+        // Misturar pacote completo + itens à mão:
+        // 'versos' => array_merge(self::TODOS_VERSOS, ['verso_extra']),
     ];
 
     public function run(): void
@@ -85,9 +167,16 @@ class ItemStreamerSeeder extends Seeder
                 continue;
             }
 
-            $this->command?->info("— {$rotulo} (user #{$userId}) —");
+            $itens = $this->itensDaConcessao($concessao);
+            if ($itens === []) {
+                $this->command?->warn("[{$rotulo}] Nenhum item definido (arrays vazios).");
 
-            foreach ($this->itensDaConcessao($concessao) as $item) {
+                continue;
+            }
+
+            $this->command?->info("— {$rotulo} (user #{$userId}) — ".count($itens).' item(ns)');
+
+            foreach ($itens as $item) {
                 try {
                     $resultado = match ($item['tipo']) {
                         'carta' => $servico->concederCartaPorSlug($usuario, $item['chave']),
@@ -101,8 +190,7 @@ class ItemStreamerSeeder extends Seeder
                     continue;
                 }
 
-                $mensagem = $this->formatarResultado($item, $resultado);
-                $this->command?->line('  '.$mensagem);
+                $this->command?->line('  '.$this->formatarResultado($item, $resultado));
 
                 if (str_contains($resultado['status'], 'duplicad')) {
                     $contagemRepetidas++;
@@ -125,32 +213,52 @@ class ItemStreamerSeeder extends Seeder
     {
         $itens = [];
 
-        $verso = isset($concessao['verso']) ? trim((string) $concessao['verso']) : '';
-        if ($verso !== '') {
-            $itens[] = ['tipo' => 'cosmetico', 'categoria' => 'card_back', 'chave' => $verso];
+        foreach ($this->chavesLista($concessao, 'versos', 'verso') as $chave) {
+            $itens[] = ['tipo' => 'cosmetico', 'categoria' => 'card_back', 'chave' => $chave];
         }
 
-        $tabuleiro = isset($concessao['tabuleiro']) ? trim((string) $concessao['tabuleiro']) : '';
-        if ($tabuleiro !== '') {
-            $itens[] = ['tipo' => 'cosmetico', 'categoria' => 'match_board', 'chave' => $tabuleiro];
+        foreach ($this->chavesLista($concessao, 'tabuleiros', 'tabuleiro') as $chave) {
+            $itens[] = ['tipo' => 'cosmetico', 'categoria' => 'match_board', 'chave' => $chave];
         }
 
-        $fundo = isset($concessao['fundo_perfil']) ? trim((string) $concessao['fundo_perfil']) : '';
-        if ($fundo !== '') {
-            $itens[] = ['tipo' => 'cosmetico', 'categoria' => 'profile_bg', 'chave' => $fundo];
+        foreach ($this->chavesLista($concessao, 'fundos_perfil', 'fundo_perfil') as $chave) {
+            $itens[] = ['tipo' => 'cosmetico', 'categoria' => 'profile_bg', 'chave' => $chave];
         }
 
-        $cartas = $concessao['cartas'] ?? [];
-        if (is_array($cartas)) {
-            foreach ($cartas as $slugCarta) {
-                $slug = trim((string) $slugCarta);
-                if ($slug !== '') {
-                    $itens[] = ['tipo' => 'carta', 'chave' => $slug];
+        foreach ($this->chavesLista($concessao, 'cartas', 'carta') as $slug) {
+            $itens[] = ['tipo' => 'carta', 'chave' => $slug];
+        }
+
+        return $itens;
+    }
+
+    /**
+     * Lista do array plural + valor singular opcional (sem duplicar chaves).
+     *
+     * @return list<string>
+     */
+    private function chavesLista(array $concessao, string $campoPlural, string $campoSingular): array
+    {
+        $chaves = [];
+
+        $lista = $concessao[$campoPlural] ?? null;
+        if (is_array($lista)) {
+            foreach ($lista as $valor) {
+                $texto = trim((string) $valor);
+                if ($texto !== '') {
+                    $chaves[] = $texto;
                 }
             }
         }
 
-        return $itens;
+        if (array_key_exists($campoSingular, $concessao)) {
+            $texto = trim((string) $concessao[$campoSingular]);
+            if ($texto !== '') {
+                $chaves[] = $texto;
+            }
+        }
+
+        return array_values(array_unique($chaves));
     }
 
     /**
