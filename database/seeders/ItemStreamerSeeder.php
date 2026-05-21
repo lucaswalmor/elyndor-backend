@@ -37,6 +37,9 @@ class ItemStreamerSeeder extends Seeder
         'versor_boomerangbr',
     ];
 
+    /** Versos específicos */
+    private const VERSOS_ESPECIFICOS = [];
+
     /** Todos os tabuleiros (match_board) */
     private const TODOS_TABULEIROS = [
         'tabuleiro_padrao_v2',
@@ -52,6 +55,9 @@ class ItemStreamerSeeder extends Seeder
         'tabuleiro_brasil_copa_2026',
     ];
 
+    /** Tabuleiros específicos */
+    private const TABULEIROS_ESPECIFICOS = [];
+
     /** Todos os fundos de perfil (profile_bg) */
     private const TODOS_FUNDOS_PERFIL = [
         'ui_bg_profile_standard',
@@ -66,6 +72,12 @@ class ItemStreamerSeeder extends Seeder
         'ui_bg_profile_obsidian',
         'ui_bg_profile_undead',
     ];
+
+    /** Fundos de perfil específicos */
+    private const FUNDOS_PERFIL_ESPECIFICOS = [];
+
+    /** Cartas específicas */
+    private const CARTAS_ESPECIFICAS = [];
 
     /** Todas as cartas colecionáveis (slug) — espelha CartasSeeder */
     private const TODAS_CARTAS = [
@@ -101,47 +113,29 @@ class ItemStreamerSeeder extends Seeder
         'devorador-de-estrelas',
     ];
 
-    /**
-     * @var list<array{
-     *   user_id: int,
-     *   rotulo: string,
-     *   versos?: list<string>,
-     *   tabuleiros?: list<string>,
-     *   fundos_perfil?: list<string>,
-     *   cartas?: list<string>,
-     *   verso?: string|null,
-     *   tabuleiro?: string|null,
-     *   fundo_perfil?: string|null,
-     * }>
-     */
-    private const CONCESSOES = [
-        [
-            'user_id' => 16,
-            'rotulo' => 'BoomerangBR',
-            'versos' => self::TODOS_VERSOS,
-            'tabuleiros' => self::TODOS_TABULEIROS,
-            'fundos_perfil' => self::TODOS_FUNDOS_PERFIL,
-            'cartas' => self::TODAS_CARTAS,
-        ],
-        // Liberar tudo — descomenta e ajusta user_id:
-        // [
-        //     'user_id' => 99,
-        //     'rotulo' => 'Conta teste — tudo',
-        //     'versos' => self::TODOS_VERSOS,
-        //     'tabuleiros' => self::TODOS_TABULEIROS,
-        //     'fundos_perfil' => self::TODOS_FUNDOS_PERFIL,
-        //     'cartas' => self::TODAS_CARTAS,
-        // ],
-        // Misturar pacote completo + itens à mão:
-        // 'versos' => array_merge(self::TODOS_VERSOS, ['verso_extra']),
-    ];
-
     public function run(): void
     {
-        $concessoes = array_values(array_filter(
-            self::CONCESSOES,
-            fn (array $linha) => (int) ($linha['user_id'] ?? 0) > 0,
-        ));
+        $concessoes = [
+            [
+                'user_id' => 16,
+                'rotulo' => 'BoomerangBR',
+                'versos' => !empty(self::VERSOS_ESPECIFICOS) ? self::VERSOS_ESPECIFICOS : self::TODOS_VERSOS,
+                'tabuleiros' => !empty(self::TABULEIROS_ESPECIFICOS) ? self::TABULEIROS_ESPECIFICOS : self::TODOS_TABULEIROS,
+                'fundos_perfil' => !empty(self::FUNDOS_PERFIL_ESPECIFICOS) ? self::FUNDOS_PERFIL_ESPECIFICOS : self::TODOS_FUNDOS_PERFIL,
+                'cartas' => !empty(self::CARTAS_ESPECIFICAS) ? self::CARTAS_ESPECIFICAS : self::TODAS_CARTAS,
+            ],
+            // Para liberar tudo para outro user, descomenta e ajusta user_id:
+            // [
+            //     'user_id' => 99,
+            //     'rotulo' => 'Conta teste — tudo',
+            //     'versos' => self::TODOS_VERSOS,
+            //     'tabuleiros' => self::TODOS_TABULEIROS,
+            //     'fundos_perfil' => self::TODOS_FUNDOS_PERFIL,
+            //     'cartas' => self::TODAS_CARTAS,
+            // ],
+            // Para misturar pacote completo + itens à mão:
+            // 'versos' => array_merge(self::TODOS_VERSOS, ['verso_extra']),
+        ];
 
         if ($concessoes === []) {
             $this->command?->warn('ItemStreamerSeeder: define user_id > 0 em pelo menos uma entrada de CONCESSOES.');
