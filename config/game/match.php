@@ -2,16 +2,16 @@
 
 /**
  * Regras de partida — v1.0
- * Timer: decisão de produto (20 + 5n, cap 90).
+ * Timer: 60 s fixos por turno (Fase 2 — playtest 21/05).
  */
 return [
     /** Segundos para ambos aceitarem o pareamento antes da oferta expirar. */
     'accept_offer_seconds' => (int) env('MATCH_ACCEPT_OFFER_SECONDS', 15),
 
     'turn_timer' => [
-        'base_seconds' => 40,
+        'base_seconds' => 60,
         'increment_per_turn' => 0,
-        'max_seconds' => 40,
+        'max_seconds' => 60,
         'auto_end_turn_on_timeout' => true,
     ],
 
