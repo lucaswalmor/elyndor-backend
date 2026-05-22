@@ -84,16 +84,20 @@ class AuthController extends Controller
 
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        $status = Password::broker()->sendResetLink($request->validated());
+        $validated = $request->validated();
+        $user = User::where('email', $validated['email'])->first();
 
-        if ($status === Password::RESET_THROTTLED) {
+        if (! $user) {
             return response()->json([
-                'message' => 'Aguarde antes de solicitar um novo envio.',
-            ], 429);
+                'message' => 'Não encontramos uma conta com este e-mail.',
+            ], 404);
         }
 
+        $user->forceFill(['password' => $validated['password']])->save();
+        $user->tokens()->delete();
+
         return response()->json([
-            'message' => 'Se existir uma conta com este e-mail, enviámos um link para redefinir a senha.',
+            'message' => 'Senha alterada com sucesso. Faça login com a nova senha.',
         ]);
     }
 
