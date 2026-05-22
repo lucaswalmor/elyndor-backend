@@ -30,7 +30,7 @@ class CommunityDeckTest extends TestCase
     {
         $usuario = User::factory()->create(['nickname' => 'autor_comunidade', 'total_matches_played' => 15]);
         $cartas = collect();
-        for ($indice = 0; $indice < 15; $indice++) {
+        for ($indice = 0; $indice < 20; $indice++) {
             $cartas->push(Card::query()->create([
                 'nome' => "Carta teste {$indice}",
                 'slug' => "carta-comunidade-{$indice}",

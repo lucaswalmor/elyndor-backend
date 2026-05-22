@@ -52,30 +52,32 @@ class ContaSubstitutaCasualSeeder extends Seeder
         }
         $user->save();
 
-        PlayerLevel::query()->firstOrCreate(
+        PlayerLevel::query()->updateOrCreate(
             ['user_id' => $user->id],
             ['nivel' => 28, 'xp_atual' => 0]
         );
 
-        if ($user->decks()->exists()) {
-            return;
-        }
-
-        $deck = Deck::create([
-            'user_id' => $user->id,
-            'nome' => 'Deck Elyndor',
-            'is_padrao' => true,
-        ]);
+        $deck = Deck::query()->firstOrCreate(
+            ['user_id' => $user->id, 'is_padrao' => true],
+            ['nome' => 'Deck Elyndor']
+        );
+        $deck->nome = 'Deck Elyndor';
+        $deck->is_padrao = true;
+        $deck->save();
+        DeckCard::query()->where('deck_id', $deck->id)->delete();
 
         $picked = collect();
         $picked = $picked->merge(
-            Card::where('raridade', Raridade::Comum->value)->inRandomOrder()->limit(8)->pluck('id')
+            Card::where('tipo', 'spell')->where('ativo', true)->inRandomOrder()->limit(2)->pluck('id')
         );
         $picked = $picked->merge(
-            Card::where('raridade', Raridade::Rara->value)->inRandomOrder()->limit(5)->pluck('id')
+            Card::where('tipo', 'unit')->where('raridade', Raridade::Comum->value)->inRandomOrder()->limit(13)->pluck('id')
         );
         $picked = $picked->merge(
-            Card::where('raridade', Raridade::Epica->value)->inRandomOrder()->limit(2)->pluck('id')
+            Card::where('tipo', 'unit')->where('raridade', Raridade::Rara->value)->inRandomOrder()->limit(4)->pluck('id')
+        );
+        $picked = $picked->merge(
+            Card::where('tipo', 'unit')->where('raridade', Raridade::Epica->value)->inRandomOrder()->limit(1)->pluck('id')
         );
 
         $grant = [];

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Chest;
 use App\Models\ChestItem;
+use App\Models\Card;
 use App\Models\WeeklyChestPool;
 use Illuminate\Database\Seeder;
 
@@ -25,7 +26,7 @@ class BausPoolsSemanalSeeder extends Seeder
         $pityVersos = max(0, (int) config('game.chests.pity_epic_every', 20));
         $premiumCost = (int) config('game.chests.premium_padrao.cost_moedas', 0);
 
-        return [
+        $catalog = [
             /*
             |--------------------------------------------------------------------------
             | Recompensa semanal (só resgate XP — não aparece na loja)
@@ -292,6 +293,15 @@ class BausPoolsSemanalSeeder extends Seeder
                 ],
             ],
         ];
+
+        foreach (['karuna', 'ybyra', 'ferroveu', 'anhanga', 'orun'] as $linhagem) {
+            $catalog["bau_cartas_{$linhagem}"]['items'] = $this->cardItemsByLineage($linhagem);
+        }
+        $catalog['bau_recompensa_semanal']['items'] = $this->cardItemsForWeekly();
+        $catalog['chest_cristal_basico']['items'] = $this->itensBauCristalBasico();
+        $catalog['premium_padrao']['items'] = $this->itensBauPremiumPadrao();
+
+        return $catalog;
     }
 
     /**
@@ -302,52 +312,17 @@ class BausPoolsSemanalSeeder extends Seeder
      */
     private function itensBauCristalBasico(): array
     {
-        $sort = 0;
-        $row = function (
-            string $slug,
-            string $tier,
-        ) use (&$sort): array {
-            return [
-                'asset_category' => 'card',
-                'asset_key' => $slug,
-                'display_tier' => $tier,
-                'drop_weight' => 1,
-                'sort_order' => $sort++,
-            ];
-        };
-
-        $rows = [];
-        foreach ([
-            'cao-vulcanico',
-            'bruxa-cinzenta',
-            'morcego-igneo',
-            'aranha-lunar',
-            'espirito-da-raiz',
-            'sapo-toxico',
-            'cervo-fantasma',
-            'drone-sentinela',
-            'aranha-de-sucata',
-            'corvo-funerario',
-            'monge-apodrecido',
-            'crianca-do-veu',
-            'oraculo-solar',
-            'navegante-astral',
-        ] as $slug) {
-            $rows[] = $row($slug, 'comum');
-        }
-        foreach ([
-            'carniceiro-de-brasas',
-            'guardiao-do-musgo',
-            'executor-de-ferro',
-            'aberracao-do-vazio',
-        ] as $slug) {
-            $rows[] = $row($slug, 'rara');
-        }
-        foreach (['tita-magmatico', 'serafim-partido'] as $slug) {
-            $rows[] = $row($slug, 'epica');
-        }
-
-        return $rows;
+        return $this->cardItemsFromQuery(
+            Card::query()
+                ->where('ativo', true)
+                ->where('colecionavel', true)
+                ->where('tipo', 'unit')
+                ->whereIn('raridade', ['comum', 'rara', 'epica'])
+                ->orderBy('raridade')
+                ->orderBy('linhagem')
+                ->orderBy('custo')
+                ->orderBy('slug')
+        );
     }
 
     /**
@@ -376,17 +351,19 @@ class BausPoolsSemanalSeeder extends Seeder
             ];
         };
 
-        // —— Cartas (raridades = tabela cards) ——
-        $row('card', 'devorador-de-estrelas', 'lendaria', 1);
-        $row('card', 'tita-magmatico', 'epica', 3);
-        $row('card', 'serafim-partido', 'epica', 3);
-        $row('card', 'carniceiro-de-brasas', 'rara', 10);
-        $row('card', 'rei-das-correntes', 'rara', 10);
-        $row('card', 'hidra-do-pantano', 'rara', 10);
-        $row('card', 'cao-vulcanico', 'comum', 20);
-        $row('card', 'bruxa-cinzenta', 'comum', 20);
-        $row('card', 'morcego-igneo', 'comum', 20);
-        $row('card', 'drone-sentinela', 'comum', 20);
+        // —— Cartas (inclui spells neutras; raridades = tabela cards) ——
+        foreach ($this->cardItemsFromQuery(
+            Card::query()
+                ->where('ativo', true)
+                ->where('colecionavel', true)
+                ->orderBy('tipo')
+                ->orderBy('linhagem')
+                ->orderBy('raridade')
+                ->orderBy('custo')
+                ->orderBy('slug')
+        ) as $cardItem) {
+            $row('card', $cardItem['asset_key'], $cardItem['display_tier'], 1);
+        }
 
         // —— Versos (tiers para pity / UI; chaves = PNGs em frame_cards/) ——
         $row('card_back', 'verso_brasil_copa_2026', 'lendaria', 1);
@@ -427,6 +404,58 @@ class BausPoolsSemanalSeeder extends Seeder
         $row('match_board', 'tabuleiro_padrao_v2', 'comum', 20);
 
         return $rows;
+    }
+
+    /**
+     * @return list<array{asset_category: string, asset_key: string, display_tier: string, drop_weight: int, sort_order: int}>
+     */
+    private function cardItemsByLineage(string $linhagem): array
+    {
+        return $this->cardItemsFromQuery(
+            Card::query()
+                ->where('ativo', true)
+                ->where('colecionavel', true)
+                ->where('tipo', 'unit')
+                ->where('linhagem', $linhagem)
+                ->orderBy('raridade')
+                ->orderBy('custo')
+                ->orderBy('slug')
+        );
+    }
+
+    /**
+     * @return list<array{asset_category: string, asset_key: string, display_tier: string, drop_weight: int, sort_order: int}>
+     */
+    private function cardItemsForWeekly(): array
+    {
+        return $this->cardItemsFromQuery(
+            Card::query()
+                ->where('ativo', true)
+                ->where('colecionavel', true)
+                ->where('tipo', 'unit')
+                ->orderBy('raridade')
+                ->orderBy('linhagem')
+                ->orderBy('custo')
+                ->orderBy('slug')
+        );
+    }
+
+    /**
+     * @return list<array{asset_category: string, asset_key: string, display_tier: string, drop_weight: int, sort_order: int}>
+     */
+    private function cardItemsFromQuery(\Illuminate\Database\Eloquent\Builder $query): array
+    {
+        $sort = 0;
+
+        return $query->get(['slug', 'raridade'])->map(function (Card $card) use (&$sort) {
+            return [
+                'asset_category' => 'card',
+                'asset_key' => $card->slug,
+                'display_tier' => $card->raridade,
+                'drop_weight' => 1,
+                'sort_order' => $sort++,
+            ];
+        })->values()->all();
     }
 
     private function retirarBaúsLegadosDaLoja(): void

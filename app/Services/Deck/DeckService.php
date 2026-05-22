@@ -110,7 +110,8 @@ class DeckService
         $formatted = $this->formatDeck($deck->load(['deckCards.card']));
 
         if (! $formatted['valido']) {
-            throw new InvalidArgumentException('Deck inválido para partida (precisa de 15 cartas válidas)');
+            $size = (int) config('game.progression.decks.size');
+            throw new InvalidArgumentException("Deck inválido para partida (precisa de {$size} cartas válidas)");
         }
 
         return $deck;
@@ -143,6 +144,8 @@ class DeckService
     {
         $size = config('game.progression.decks.size');
         $limits = config('game.progression.decks.copy_limits');
+        $rarityTotalLimits = config('game.progression.decks.rarity_total_limits', []);
+        $maxSpells = (int) config('game.progression.decks.max_spells', 5);
         $owned = $this->collection->ownedMap($user);
 
         if (empty($cartas)) {
@@ -169,6 +172,8 @@ class DeckService
         }
 
         $cards = Card::whereIn('id', array_keys($byCard))->get()->keyBy('id');
+        $spellCount = 0;
+        $rarityTotals = [];
 
         foreach ($byCard as $cardId => $qty) {
             $card = $cards->get($cardId);
@@ -185,6 +190,20 @@ class DeckService
             if ($qty > $maxCopies) {
                 throw new InvalidArgumentException("Limite de {$maxCopies} cópia(s) de {$card->raridade} por deck");
             }
+
+            if ($card->tipo === 'spell') {
+                $spellCount += $qty;
+            }
+            $rarityTotals[$card->raridade] = ($rarityTotals[$card->raridade] ?? 0) + $qty;
+        }
+
+        if ($spellCount > $maxSpells) {
+            throw new InvalidArgumentException("Limite de {$maxSpells} feitiço(s) por deck");
+        }
+        foreach ($rarityTotalLimits as $raridade => $limite) {
+            if (($rarityTotals[$raridade] ?? 0) > (int) $limite) {
+                throw new InvalidArgumentException("Limite de {$limite} carta(s) {$raridade}(s) no deck");
+            }
         }
     }
 
@@ -192,21 +211,30 @@ class DeckService
     {
         $size = config('game.progression.decks.size');
         $limits = config('game.progression.decks.copy_limits');
+        $rarityTotalLimits = config('game.progression.decks.rarity_total_limits', []);
+        $maxSpells = (int) config('game.progression.decks.max_spells', 5);
         $total = $deck->deckCards->sum('quantidade');
         $valido = $total === $size;
+        $spells = 0;
+        $rarityTotals = [];
 
-        $cartas = $deck->deckCards->map(function ($dc) use ($limits, &$valido) {
+        $cartas = $deck->deckCards->map(function ($dc) use ($limits, &$valido, &$spells, &$rarityTotals) {
             $raridade = $dc->card?->raridade ?? 'comum';
             $max = $limits[$raridade] ?? 1;
             if ($dc->quantidade > $max) {
                 $valido = false;
             }
+            if ($dc->card?->tipo === 'spell') {
+                $spells += (int) $dc->quantidade;
+            }
+            $rarityTotals[$raridade] = ($rarityTotals[$raridade] ?? 0) + (int) $dc->quantidade;
 
             return [
                 'card_id' => $dc->card_id,
                 'quantidade' => $dc->quantidade,
                 'nome' => $dc->card?->nome,
                 'raridade' => $raridade,
+                'tipo' => $dc->card?->tipo,
                 'linhagem' => $dc->card?->linhagem,
                 'custo' => $dc->card?->custo,
                 'ataque' => $dc->card?->ataque,
@@ -218,12 +246,21 @@ class DeckService
         if ($total !== $size) {
             $valido = false;
         }
+        if ($spells > $maxSpells) {
+            $valido = false;
+        }
+        foreach ($rarityTotalLimits as $raridade => $limite) {
+            if (($rarityTotals[$raridade] ?? 0) > (int) $limite) {
+                $valido = false;
+            }
+        }
 
         return [
             'id' => $deck->id,
             'nome' => $deck->nome,
             'is_padrao' => $deck->is_padrao,
             'total_cartas' => $total,
+            'total_spells' => $spells,
             'valido' => $valido,
             'cartas' => $cartas,
         ];

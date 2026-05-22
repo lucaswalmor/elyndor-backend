@@ -70,6 +70,9 @@ class EffectResolver
                 $unit['crescimento_atk'] = 0;
                 $unit['crescimento_hp'] = 0;
             }
+            if (($skill->efeito['tipo'] ?? '') === 'provocar') {
+                $unit['flags']['taunt_self'] = true;
+            }
         }
     }
 
@@ -109,9 +112,23 @@ class EffectResolver
             case 'dano_todas_inimigas':
                 $this->damageAllEnemyUnits($estado, $slot, (int) ($efeito['valor'] ?? 0), $animacoes);
                 break;
+            case 'dano_alvo':
+                if ($alvo !== null) {
+                    $this->engine->damageUnit($estado, $slot === 1 ? 2 : 1, $alvo, (int) ($efeito['valor'] ?? 0), $animacoes);
+                }
+                break;
             case 'debuff_ataque':
                 // FIX: aplica no ALVO (defensor), não no atacante
                 $this->addEffect($estado, $alvo, 'debuff_ataque', $efeito, $animacoes);
+                break;
+            case 'buff_ataque_turno':
+                $this->buffAttackTurn($estado, $alvo, (int) ($efeito['valor'] ?? 1), $animacoes);
+                break;
+            case 'cura_alvo':
+                $this->healTargetUnit($estado, $alvo, (int) ($efeito['valor'] ?? 1), $animacoes);
+                break;
+            case 'cura_todos_aliados':
+                $this->healAllAllies($estado, $slot, (int) ($efeito['valor'] ?? 1), $animacoes);
                 break;
             case 'veneno':
                 if ($alvo !== null) {
@@ -123,6 +140,19 @@ class EffectResolver
                 break;
             case 'silencio':
                 $this->silence($estado, $alvo, $animacoes);
+                break;
+            case 'paralisia':
+                $this->addEffect($estado, $alvo, 'paralisia', $efeito, $animacoes);
+                break;
+            case 'veu_arcano':
+                if ($alvo !== null) {
+                    $this->addFlag($estado, $alvo, 'escudo', $animacoes);
+                } else {
+                    $this->addFlag($estado, $unit, 'escudo', $animacoes);
+                }
+                break;
+            case 'liberar_ataque_extra':
+                $this->releaseExtraAttack($estado, $alvo, $animacoes);
                 break;
             case 'cura_aleatorio_aliado':
                 $this->healRandomAlly($estado, $slot, (int) ($efeito['valor'] ?? 1), $animacoes);
@@ -168,6 +198,9 @@ class EffectResolver
                 break;
             case 'crescimento_por_morte':
                 $this->addFlag($estado, $unit, 'crescimento_por_morte', $animacoes);
+                break;
+            case 'provocar':
+                $this->addFlag($estado, $unit, 'taunt_self', $animacoes);
                 break;
         }
     }
@@ -287,7 +320,7 @@ class EffectResolver
             return;
         }
         // FIX: unidades imunes a controle ignoram silêncio, nao_pode_atacar e confusao
-        $tiposControle = ['silencio', 'nao_pode_atacar', 'confusao'];
+        $tiposControle = ['silencio', 'nao_pode_atacar', 'confusao', 'paralisia'];
         if (in_array($tipo, $tiposControle) && $this->hasPassive($unit['card_id'], 'imune_controle')) {
             return;
         }
@@ -298,6 +331,9 @@ class EffectResolver
         ];
         if ($tipo === 'silencio') {
             $unit['silenciado'] = true;
+        }
+        if ($tipo === 'paralisia') {
+            $unit['pode_atacar'] = false;
         }
         $animacoes[] = ['tipo' => 'efeito', 'instancia_id' => $unit['instancia_id'], 'efeito' => $tipo];
         $this->syncToState($estado, $unit);
@@ -332,6 +368,57 @@ class EffectResolver
         $units[$idx]['vida_atual'] = min($max, $units[$idx]['vida_atual'] + $amount);
         $estado['campo'][$slot] = $units;
         $animacoes[] = ['tipo' => 'cura', 'instancia_id' => $units[$idx]['instancia_id'], 'valor' => $amount];
+    }
+
+    private function healTargetUnit(array &$estado, ?array &$unit, int $amount, array &$animacoes): void
+    {
+        if (! $unit || $amount <= 0) {
+            return;
+        }
+        $maxHp = (int) ($unit['vida_max'] ?? CardCatalog::get($unit['card_id'])?->vida ?? 1);
+        $old = (int) ($unit['vida_atual'] ?? 0);
+        $unit['vida_atual'] = min($maxHp, $old + $amount);
+        $real = $unit['vida_atual'] - $old;
+        if ($real > 0) {
+            $animacoes[] = ['tipo' => 'cura', 'instancia_id' => $unit['instancia_id'], 'valor' => $real];
+        }
+        $this->syncToState($estado, $unit);
+    }
+
+    private function healAllAllies(array &$estado, int $slot, int $amount, array &$animacoes): void
+    {
+        $ids = array_column($estado['campo'][$slot] ?? [], 'instancia_id');
+        foreach ($ids as $id) {
+            $unit = $this->engine->findUnit($estado, $slot, $id);
+            if ($unit) {
+                $this->healTargetUnit($estado, $unit, $amount, $animacoes);
+            }
+        }
+    }
+
+    private function buffAttackTurn(array &$estado, ?array &$unit, int $amount, array &$animacoes): void
+    {
+        if (! $unit || $amount === 0) {
+            return;
+        }
+        $unit['bonus_ataque_turno'] = (int) ($unit['bonus_ataque_turno'] ?? 0) + $amount;
+        $animacoes[] = ['tipo' => 'buff_ataque', 'instancia_id' => $unit['instancia_id'], 'valor' => $amount];
+        $this->syncToState($estado, $unit);
+    }
+
+    private function releaseExtraAttack(array &$estado, ?array &$unit, array &$animacoes): void
+    {
+        if (! $unit) {
+            return;
+        }
+        if ($unit['flags']['impeto_momentaneo_usado_turno'] ?? false) {
+            return;
+        }
+        $unit['pode_atacar'] = true;
+        $unit['foi_invocado_neste_turno'] = false;
+        $unit['flags']['impeto_momentaneo_usado_turno'] = true;
+        $animacoes[] = ['tipo' => 'ataque_extra', 'instancia_id' => $unit['instancia_id']];
+        $this->syncToState($estado, $unit);
     }
 
     private function healPlayer(array &$estado, int $slot, int $amount, array &$animacoes): void

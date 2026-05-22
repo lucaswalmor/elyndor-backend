@@ -107,7 +107,7 @@ app/
 │   ├── Auth/
 │   │   └── AuthService.php          # register, login, deck inicial
 │   ├── Deck/
-│   │   └── DeckService.php          # CRUD, validação 15 cartas, is_padrao
+│   │   └── DeckService.php          # CRUD, validação 20 cartas, spells, is_padrao
 │   ├── Match/
 │   │   ├── MatchStateService.php    # load/save estado JSON
 │   │   └── MatchActionService.php   # invocar, atacar, fim de turno

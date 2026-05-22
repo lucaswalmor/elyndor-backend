@@ -18,7 +18,7 @@ return [
     'field' => [
         'max_units_per_player' => 5,
         'max_hand_size' => 7,
-        'deck_size' => 15,
+        'deck_size' => 20,
     ],
 
     'energy' => [

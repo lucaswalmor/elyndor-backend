@@ -47,6 +47,9 @@ class CardCatalog
                 'custo'       => $card->custo,
                 'ataque'      => $card->ataque,
                 'vida'        => $card->vida,
+                'tipo'        => $card->tipo,
+                'raridade'    => $card->raridade,
+                'classe'      => $card->classe,
                 'linhagem'    => $card->linhagem,
                 'imagem_path' => $card->imagem_path,
                 'skills'      => $card->skills->map(fn ($s) => [
@@ -94,6 +97,9 @@ class CardCatalog
             public int    $custo;
             public int    $ataque;
             public int    $vida;
+            public string $tipo;
+            public string $raridade;
+            public ?string $classe;
             public ?string $linhagem;
             public ?string $imagem_path;
             public array  $skills;
@@ -106,6 +112,9 @@ class CardCatalog
                 $this->custo       = $d['custo'];
                 $this->ataque      = $d['ataque'];
                 $this->vida        = $d['vida'];
+                $this->tipo        = $d['tipo'] ?? 'unit';
+                $this->raridade    = $d['raridade'] ?? 'comum';
+                $this->classe      = $d['classe'] ?? null;
                 $this->linhagem    = $d['linhagem'] ?? null;
                 $this->imagem_path = $d['imagem_path'] ?? null;
                 $this->skills      = $skills;

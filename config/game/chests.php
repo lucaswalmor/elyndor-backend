@@ -20,14 +20,23 @@ return [
     ],
 
     'spin_weights_cristal_basico' => [
-        'comum' => 100,
+        'comum' => 88,
+        'rara' => 10,
+        'epica' => 2,
+    ],
+
+    'spin_weights_linhagem' => [
+        'comum' => 70,
+        'rara' => 22,
+        'epica' => 7,
+        'lendaria' => 1,
     ],
 
     'weekly_offer_weights' => [
-        'comum' => 70,
-        'rara' => 20,
-        'epica' => 9,
-        'lendaria' => 1,
+        'comum' => 775,
+        'rara' => 200,
+        'epica' => 20,
+        'lendaria' => 5,
     ],
 
     'pity_epic_every' => 20,

@@ -325,14 +325,16 @@ class CosmeticChestService
             return config('game.chests.spin_weights_cristal_basico');
         }
 
+        if ($slug === 'bau_recompensa_semanal') {
+            return config('game.chests.weekly_offer_weights');
+        }
+
+        if (str_starts_with($slug, 'bau_cartas_')) {
+            return config('game.chests.spin_weights_linhagem');
+        }
+
         $usesTierRoulette = [
             'premium_padrao',
-            'bau_recompensa_semanal',
-            'bau_cartas_karuna',
-            'bau_cartas_ybyra',
-            'bau_cartas_ferroveu',
-            'bau_cartas_anhanga',
-            'bau_cartas_orun',
             'bau_cosmetico_fundos',
             'bau_cosmetico_tabuleiros',
             'bau_cosmetico_versos',

@@ -47,6 +47,7 @@ class MatchEngine
 
         match ($acao) {
             'invocar' => $this->invoke($estado, $slot, $payload, $animacoes),
+            'jogar_feitico' => $this->castSpell($estado, $slot, $payload, $animacoes),
             'atacar_unidade' => $this->attackUnit($estado, $slot, $payload, $animacoes),
             'atacar_jogador' => $this->attackPlayer($estado, $slot, $payload, $animacoes),
             'habilidade' => $this->activeAbility($estado, $slot, $payload, $animacoes),
@@ -108,6 +109,10 @@ class MatchEngine
                 'instancia_id' => (string) ($payload['instancia_id'] ?? ''),
             ],
             'invocar' => [
+                'instancia_id' => (string) ($payload['instancia_id'] ?? ''),
+                'alvo_instancia_id' => (string) ($payload['alvo_instancia_id'] ?? ''),
+            ],
+            'jogar_feitico' => [
                 'instancia_id' => (string) ($payload['instancia_id'] ?? ''),
                 'alvo_instancia_id' => (string) ($payload['alvo_instancia_id'] ?? ''),
             ],
@@ -416,6 +421,10 @@ class MatchEngine
             throw new InvalidArgumentException('Carta inválida');
         }
 
+        if ($card->tipo === 'spell') {
+            throw new InvalidArgumentException('FeitiÃ§os devem ser jogados, nÃ£o invocados');
+        }
+
         if (count($estado['campo'][$slot]) >= config('game.match.field.max_units_per_player')) {
             throw new InvalidArgumentException('Campo cheio');
         }
@@ -459,6 +468,105 @@ class MatchEngine
             'alvo_instancia_id' => $payload['alvo_instancia_id'] ?? null,
         ];
         $this->effects->applyBattleCry($estado, $slot, $unitRef, $animacoes, $contextoGrito);
+    }
+
+    private function castSpell(array &$estado, int $slot, array $payload, array &$animacoes): void
+    {
+        $instanciaId = $payload['instancia_id'] ?? '';
+        $hand = &$estado['jogadores'][(string) $slot]['mao'];
+        $idx = $this->handIndex($hand, $instanciaId);
+        if ($idx === null) {
+            throw new InvalidArgumentException('Carta nÃ£o estÃ¡ na mÃ£o');
+        }
+
+        $cardId = $hand[$idx]['card_id'];
+        $card = CardCatalog::get($cardId);
+        if (! $card || $card->tipo !== 'spell') {
+            throw new InvalidArgumentException('Carta nÃ£o Ã© um feitiÃ§o');
+        }
+
+        $player = &$estado['jogadores'][(string) $slot];
+        if ($player['energia_atual'] < $card->custo) {
+            throw new InvalidArgumentException('Energia insuficiente');
+        }
+
+        $skill = $card->skills[0] ?? null;
+        $efeito = $skill?->efeito ?? null;
+        if (! is_array($efeito)) {
+            throw new InvalidArgumentException('FeitiÃ§o sem efeito configurado');
+        }
+
+        $ctx = $this->spellContext($estado, $slot, $efeito, $payload);
+        $alvo = $ctx['alvo'] ?? null;
+        $alvoSlot = $ctx['alvo_slot'] ?? null;
+
+        $player['energia_atual'] -= $card->custo;
+        array_splice($hand, $idx, 1);
+        $player['cemiterio'][] = $cardId;
+
+        $animacoes[] = [
+            'tipo' => 'jogar_feitico',
+            'card_id' => $cardId,
+            'instancia_id' => $instanciaId,
+            'alvo_instancia_id' => $payload['alvo_instancia_id'] ?? null,
+        ];
+
+        $isHostileTarget = $alvo !== null && $alvoSlot !== null && $alvoSlot !== $slot;
+        $isDamageSpell = ($efeito['tipo'] ?? '') === 'dano_alvo';
+        if ($isHostileTarget && ! $isDamageSpell && ($alvo['flags']['escudo'] ?? false)) {
+            unset($alvo['flags']['escudo']);
+            $this->syncUnit($estado, $alvoSlot, $alvo);
+            $animacoes[] = ['tipo' => 'escudo_quebrado', 'instancia_id' => $alvo['instancia_id']];
+
+            return;
+        }
+
+        $source = null;
+        $this->effects->apply($estado, $slot, $source, $efeito, $animacoes, $ctx);
+    }
+
+    private function spellContext(array $estado, int $slot, array $efeito, array $payload): array
+    {
+        $alvoTipo = $efeito['alvo'] ?? null;
+        if ($alvoTipo === null) {
+            return [];
+        }
+
+        $targetId = $payload['alvo_instancia_id'] ?? null;
+        if (! $targetId) {
+            throw new InvalidArgumentException('Selecione um alvo para o feitiÃ§o');
+        }
+
+        $opp = $slot === 1 ? 2 : 1;
+        $targetSlot = match ($alvoTipo) {
+            'unidade_aliada' => $slot,
+            'unidade_inimiga' => $opp,
+            default => null,
+        };
+
+        if ($targetSlot === null) {
+            throw new InvalidArgumentException('Tipo de alvo invÃ¡lido para o feitiÃ§o');
+        }
+
+        $target = $this->findUnit($estado, $targetSlot, $targetId);
+        if (! $target) {
+            throw new InvalidArgumentException('Alvo invÃ¡lido');
+        }
+
+        if ($alvoTipo === 'unidade_inimiga') {
+            $taunters = array_filter(
+                $estado['campo'][$targetSlot] ?? [],
+                fn ($u) => ($u['flags']['taunt_self'] ?? false) && ! ($u['silenciado'] ?? false)
+            );
+            if (! empty($taunters) && ! ($target['flags']['taunt_self'] ?? false)) {
+                throw new InvalidArgumentException('Deve escolher a unidade com provocaÃ§Ã£o primeiro');
+            }
+        }
+
+        return [
+            'alvo' => $target,
+            'alvo_slot' => $targetSlot,
+        ];
     }
 
     private function attackUnit(array &$estado, int $slot, array $payload, array &$animacoes): void
@@ -555,6 +663,7 @@ class MatchEngine
 
         foreach ($estado['campo'][$slot] as &$unidadeFimTurno) {
             $unidadeFimTurno['bonus_ataque_turno'] = 0;
+            unset($unidadeFimTurno['flags']['impeto_momentaneo_usado_turno']);
         }
         unset($unidadeFimTurno);
 
@@ -618,7 +727,7 @@ class MatchEngine
         foreach ($estado['campo'][$slot] as &$u) {
             $hasCantAttack = false;
             foreach ($u['efeitos'] ?? [] as $fx) {
-                if (($fx['tipo'] ?? '') === 'nao_pode_atacar') {
+                if (in_array(($fx['tipo'] ?? ''), ['nao_pode_atacar', 'paralisia'], true)) {
                     $hasCantAttack = true;
                     break;
                 }
@@ -701,8 +810,23 @@ class MatchEngine
         if (empty($player['cemiterio'])) {
             return;
         }
-        $player['deck'] = $player['cemiterio'];
-        $player['cemiterio'] = [];
+        $spellIds = [];
+        $recyclableIds = [];
+        foreach ($player['cemiterio'] as $cardId) {
+            $card = CardCatalog::get((int) $cardId);
+            if (($card?->tipo ?? 'unit') === 'spell') {
+                $spellIds[] = $cardId;
+                continue;
+            }
+            $recyclableIds[] = $cardId;
+        }
+
+        if ($recyclableIds === []) {
+            return;
+        }
+
+        $player['deck'] = $recyclableIds;
+        $player['cemiterio'] = $spellIds;
         shuffle($player['deck']);
     }
 

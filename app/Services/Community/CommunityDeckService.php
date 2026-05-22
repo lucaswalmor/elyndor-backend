@@ -150,7 +150,8 @@ class CommunityDeckService
         $formatado = $this->deckService->listForUser($usuario);
         $deckResumo = collect($formatado)->firstWhere('id', $deckId);
         if (! $deckResumo || ! $deckResumo['valido']) {
-            throw new InvalidArgumentException('O deck precisa estar válido (15 cartas) para publicar.');
+            $tamanhoDeck = (int) config('game.progression.decks.size', 20);
+            throw new InvalidArgumentException("O deck precisa estar válido ({$tamanhoDeck} cartas) para publicar.");
         }
 
         $nome = trim($nome);
@@ -429,6 +430,8 @@ class CommunityDeckService
                     'nome' => $card?->nome,
                     'linhagem' => $card?->linhagem,
                     'raridade' => $card?->raridade,
+                    'tipo' => $card?->tipo,
+                    'classe' => $card?->classe,
                     'custo' => $card?->custo,
                     'ataque' => $card?->ataque,
                     'vida' => $card?->vida,

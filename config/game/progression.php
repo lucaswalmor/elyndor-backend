@@ -67,19 +67,24 @@ return [
     ],
 
     'starter_deck' => [
-        'size' => 15,
-        'comum' => 13,
-        'rara' => 1,
+        'size' => 20,
+        'comum' => 16,
+        'rara' => 3,
         'epica' => 1,
+        'spells' => 0,
     ],
 
     'decks' => [
         'max_per_user' => 30,
-        'size' => 15,
+        'size' => 20,
+        'max_spells' => 5,
         'copy_limits' => [
             'comum' => 3,
             'rara' => 5,
             'epica' => 2,
+            'lendaria' => 1,
+        ],
+        'rarity_total_limits' => [
             'lendaria' => 1,
         ],
     ],

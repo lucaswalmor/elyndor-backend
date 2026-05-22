@@ -63,6 +63,7 @@ class SubstituteBrain
         $tauntIds = $this->strictTauntInstanceIds($estado, $oppSlot);
         $fieldMax = (int) config('game.match.field.max_units_per_player', 5);
         $campoCount = count($estado['campo'][$botSlot] ?? []);
+        $energy = (int) (($estado['jogadores'][(string) $botSlot]['energia_atual'] ?? 0));
 
         foreach ($estado['campo'][$botSlot] ?? [] as $unit) {
             if (! ($unit['pode_atacar'] ?? false) || ($unit['foi_invocado_neste_turno'] ?? false)) {
@@ -118,12 +119,21 @@ class SubstituteBrain
             }
         }
 
+        foreach ($estado['jogadores'][(string) $botSlot]['mao'] ?? [] as $handCard) {
+            $spellCandidate = $this->spellCandidate($estado, $botSlot, $handCard, $energy, $aggression);
+            if ($spellCandidate !== null) {
+                $candidates[] = $spellCandidate;
+            }
+        }
+
         if ($campoCount < $fieldMax) {
-            $energy = (int) (($estado['jogadores'][(string) $botSlot]['energia_atual'] ?? 0));
             foreach ($estado['jogadores'][(string) $botSlot]['mao'] ?? [] as $handCard) {
                 $cardId = (int) ($handCard['card_id'] ?? 0);
                 $catalog = CardCatalog::get($cardId);
                 if (! $catalog) {
+                    continue;
+                }
+                if (($catalog->tipo ?? 'unit') === 'spell') {
                     continue;
                 }
                 $cost = (int) ($catalog->custo ?? 999);
@@ -148,6 +158,151 @@ class SubstituteBrain
         ];
 
         return $candidates;
+    }
+
+    /**
+     * @return array{payload: array<string, mixed>, score: float}|null
+     */
+    private function spellCandidate(array $estado, int $botSlot, array $handCard, int $energy, float $aggression): ?array
+    {
+        $cardId = (int) ($handCard['card_id'] ?? 0);
+        $card = CardCatalog::get($cardId);
+        if (! $card || ($card->tipo ?? 'unit') !== 'spell') {
+            return null;
+        }
+
+        $cost = (int) ($card->custo ?? 999);
+        if ($cost > $energy) {
+            return null;
+        }
+
+        $effect = $card->skills[0]->efeito ?? [];
+        if (! is_array($effect)) {
+            return null;
+        }
+
+        $tipo = (string) ($effect['tipo'] ?? '');
+        $target = null;
+        $score = 0.0;
+
+        if (($effect['alvo'] ?? null) === 'unidade_inimiga') {
+            $target = $this->bestEnemySpellTarget($estado, $botSlot, $tipo, (int) ($effect['valor'] ?? 0));
+            if (! $target) {
+                return null;
+            }
+            $targetValue = $this->unitBoardValue($target);
+            $score = match ($tipo) {
+                'dano_alvo' => 55.0 + $targetValue + (((int) ($effect['valor'] ?? 0) >= (int) ($target['vida_atual'] ?? 99)) ? 160.0 : 0.0),
+                'silencio' => 45.0 + $targetValue * 0.8,
+                'paralisia' => 40.0 + max(0, (int) ($target['ataque_atual'] ?? 0)) * 10.0,
+                'debuff_ataque' => 35.0 + max(0, (int) ($target['ataque_atual'] ?? 0)) * 8.0,
+                default => 20.0 + $targetValue * 0.4,
+            };
+            $score += $aggression * 12.0;
+        } elseif (($effect['alvo'] ?? null) === 'unidade_aliada') {
+            $target = $this->bestAllySpellTarget($estado, $botSlot, $tipo);
+            if (! $target) {
+                return null;
+            }
+            $score = match ($tipo) {
+                'cura_alvo' => 45.0 + max(0, (int) ($target['vida_max'] ?? 0) - (int) ($target['vida_atual'] ?? 0)) * 12.0,
+                'buff_ataque_turno' => 40.0 + (($target['pode_atacar'] ?? false) ? 40.0 : 0.0) + $aggression * 14.0,
+                'veu_arcano' => 35.0 + $this->unitBoardValue($target) * 0.7,
+                'liberar_ataque_extra' => 60.0 + $this->unitBoardValue($target) * 0.7,
+                default => 20.0 + $this->unitBoardValue($target) * 0.4,
+            };
+        } elseif ($tipo === 'cura_todos_aliados') {
+            $damaged = array_filter(
+                $estado['campo'][$botSlot] ?? [],
+                fn ($unit) => (int) ($unit['vida_atual'] ?? 0) < (int) ($unit['vida_max'] ?? 0)
+            );
+            if ($damaged === []) {
+                return null;
+            }
+            $score = 40.0 + count($damaged) * 22.0;
+        } else {
+            return null;
+        }
+
+        $payload = [
+            'acao' => 'jogar_feitico',
+            'instancia_id' => (string) ($handCard['instancia_id'] ?? ''),
+        ];
+        if ($target) {
+            $payload['alvo_instancia_id'] = (string) ($target['instancia_id'] ?? '');
+        }
+
+        return [
+            'payload' => $payload,
+            'score' => $score - ($cost * 4.0),
+        ];
+    }
+
+    private function bestEnemySpellTarget(array $estado, int $botSlot, string $tipo, int $spellValue): ?array
+    {
+        $oppSlot = $botSlot === 1 ? 2 : 1;
+        $targets = array_values($estado['campo'][$oppSlot] ?? []);
+        $tauntIds = $this->strictTauntInstanceIds($estado, $oppSlot);
+        if ($tauntIds !== []) {
+            $targets = array_values(array_filter(
+                $targets,
+                fn ($unit) => in_array((string) ($unit['instancia_id'] ?? ''), $tauntIds, true)
+            ));
+        }
+        if ($targets === []) {
+            return null;
+        }
+
+        usort($targets, function ($left, $right) use ($tipo, $spellValue) {
+            $leftKill = $tipo === 'dano_alvo' && $spellValue >= (int) ($left['vida_atual'] ?? 99);
+            $rightKill = $tipo === 'dano_alvo' && $spellValue >= (int) ($right['vida_atual'] ?? 99);
+            if ($leftKill !== $rightKill) {
+                return $rightKill <=> $leftKill;
+            }
+
+            return $this->unitBoardValue($right) <=> $this->unitBoardValue($left);
+        });
+
+        return $targets[0] ?? null;
+    }
+
+    private function bestAllySpellTarget(array $estado, int $botSlot, string $tipo): ?array
+    {
+        $targets = array_values($estado['campo'][$botSlot] ?? []);
+        if ($targets === []) {
+            return null;
+        }
+
+        if ($tipo === 'cura_alvo') {
+            $targets = array_values(array_filter(
+                $targets,
+                fn ($unit) => (int) ($unit['vida_atual'] ?? 0) < (int) ($unit['vida_max'] ?? 0)
+            ));
+            if ($targets === []) {
+                return null;
+            }
+            usort($targets, fn ($left, $right) =>
+                ((int) ($right['vida_max'] ?? 0) - (int) ($right['vida_atual'] ?? 0))
+                <=>
+                ((int) ($left['vida_max'] ?? 0) - (int) ($left['vida_atual'] ?? 0))
+            );
+
+            return $targets[0] ?? null;
+        }
+
+        if ($tipo === 'liberar_ataque_extra') {
+            $targets = array_values(array_filter(
+                $targets,
+                fn ($unit) => ! ($unit['pode_atacar'] ?? false) && ! ($unit['foi_invocado_neste_turno'] ?? false)
+            ));
+            if ($targets === []) {
+                return null;
+            }
+        }
+
+        usort($targets, fn ($left, $right) => $this->unitBoardValue($right) <=> $this->unitBoardValue($left));
+
+        return $targets[0] ?? null;
     }
 
     /**

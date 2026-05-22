@@ -71,32 +71,21 @@ class ContasSubstitutasRanqueadaSeeder extends Seeder
             }
             $user->save();
 
-            PlayerLevel::query()->firstOrCreate(
+            PlayerLevel::query()->updateOrCreate(
                 ['user_id' => $user->id],
-                ['nivel' => max(40, (int) config('game.ranked.min_level', 20) + 5), 'xp_atual' => 0]
+                ['nivel' => $this->botLevelForDivision($key), 'xp_atual' => 0]
             );
 
-            if ($user->decks()->exists()) {
-                continue;
-            }
+            $deck = Deck::query()->firstOrCreate(
+                ['user_id' => $user->id, 'is_padrao' => true],
+                ['nome' => 'Deck Elyndor']
+            );
+            $deck->nome = 'Deck Elyndor';
+            $deck->is_padrao = true;
+            $deck->save();
+            DeckCard::query()->where('deck_id', $deck->id)->delete();
 
-            $deck = Deck::create([
-                'user_id' => $user->id,
-                'nome' => 'Deck Elyndor',
-                'is_padrao' => true,
-            ]);
-
-            $cfg = config('game.progression.starter_deck');
-            $picked = collect();
-            $picked = $picked->merge(
-                Card::where('raridade', Raridade::Comum->value)->inRandomOrder()->limit((int) $cfg['comum'])->pluck('id')
-            );
-            $picked = $picked->merge(
-                Card::where('raridade', Raridade::Rara->value)->inRandomOrder()->limit((int) $cfg['rara'])->pluck('id')
-            );
-            $picked = $picked->merge(
-                Card::where('raridade', Raridade::Epica->value)->inRandomOrder()->limit((int) $cfg['epica'])->pluck('id')
-            );
+            $picked = $this->pickDeckForDivision($key);
 
             $grant = [];
             foreach ($picked as $cardId) {
@@ -110,5 +99,77 @@ class ContasSubstitutasRanqueadaSeeder extends Seeder
 
             $collection->grant($user, $grant);
         }
+    }
+
+    private function botLevelForDivision(string $division): int
+    {
+        return match ($division) {
+            'ferro' => 25,
+            'bronze' => 32,
+            'prata' => 40,
+            'ouro' => 50,
+            'platina' => 62,
+            'diamante' => 75,
+            'mestre' => 90,
+            default => max(40, (int) config('game.ranked.min_level', 20) + 5),
+        };
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    private function pickDeckForDivision(string $division): \Illuminate\Support\Collection
+    {
+        $size = (int) config('game.progression.decks.size', 20);
+        $spellLimit = (int) config('game.progression.decks.max_spells', 5);
+        $plan = match ($division) {
+            'ferro' => ['comum' => 17, 'rara' => 3, 'epica' => 0, 'lendaria' => 0, 'spells' => 1],
+            'bronze' => ['comum' => 15, 'rara' => 4, 'epica' => 1, 'lendaria' => 0, 'spells' => 2],
+            'prata' => ['comum' => 13, 'rara' => 5, 'epica' => 2, 'lendaria' => 0, 'spells' => 3],
+            'ouro' => ['comum' => 12, 'rara' => 5, 'epica' => 2, 'lendaria' => 1, 'spells' => 3],
+            'platina' => ['comum' => 11, 'rara' => 5, 'epica' => 3, 'lendaria' => 1, 'spells' => 4],
+            'diamante', 'mestre' => ['comum' => 10, 'rara' => 6, 'epica' => 3, 'lendaria' => 1, 'spells' => 5],
+            default => ['comum' => 16, 'rara' => 3, 'epica' => 1, 'lendaria' => 0, 'spells' => 2],
+        };
+        $plan['spells'] = min($spellLimit, (int) $plan['spells']);
+
+        $picked = collect();
+        $spellIds = Card::query()
+            ->where('tipo', 'spell')
+            ->where('ativo', true)
+            ->inRandomOrder()
+            ->limit($plan['spells'])
+            ->pluck('id');
+        $picked = $picked->merge($spellIds);
+
+        foreach ([Raridade::Lendaria, Raridade::Epica, Raridade::Rara, Raridade::Comum] as $raridade) {
+            $target = (int) ($plan[$raridade->value] ?? 0);
+            if ($target <= 0) {
+                continue;
+            }
+            $picked = $picked->merge(
+                Card::query()
+                    ->where('tipo', 'unit')
+                    ->where('ativo', true)
+                    ->where('raridade', $raridade->value)
+                    ->inRandomOrder()
+                    ->limit($target)
+                    ->pluck('id')
+            );
+        }
+
+        if ($picked->count() < $size) {
+            $picked = $picked->merge(
+                Card::query()
+                    ->where('tipo', 'unit')
+                    ->where('ativo', true)
+                    ->whereNotIn('id', $picked->all())
+                    ->inRandomOrder()
+                    ->limit($size - $picked->count())
+                    ->pluck('id')
+            );
+        }
+
+        return $picked->unique()->take($size)->values();
     }
 }
