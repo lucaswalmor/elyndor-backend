@@ -20,7 +20,7 @@ class CartasSeeder extends Seeder
                     'linhagem'    => $c['linhagem'],
                     'classe'      => $c['classe'] ?? null,
                     'raridade'    => $c['raridade'],
-                    'tipo'        => $c['tipo'] ?? 'unidade',
+                    'tipo'        => $c['tipo'] ?? 'unit',
                     'custo'       => $c['custo'],
                     'ataque'      => $c['ataque'] ?? 0,
                     'vida'        => $c['vida'] ?? 0,
@@ -54,7 +54,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Carniceiro de Brasas', 'slug' => 'carniceiro-de-brasas',
                 'linhagem' => 'karuna', 'classe' => 'Demônio', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 5, 'ataque' => 4, 'vida' => 6,
+                'tipo' => 'unit', 'custo' => 5, 'ataque' => 4, 'vida' => 6,
                 'imagem' => 'carniceiro-de-brasas', 'imagem_path' => 'karuna/carniceiro_de_brasas.png',
                 'descricao' => 'Ao morrer, causa 2 de dano a todas as unidades inimigas em campo.',
                 'habilidades' => [['nome' => 'Morte Explosiva', 'tipo' => 'gatilho', 'gatilho' => 'ao_morrer',
@@ -63,7 +63,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Cão Vulcânico', 'slug' => 'cao-vulcanico',
                 'linhagem' => 'karuna', 'classe' => 'Fera Infernal', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 2, 'ataque' => 3, 'vida' => 2,
+                'tipo' => 'unit', 'custo' => 2, 'ataque' => 3, 'vida' => 2,
                 'imagem' => 'cao-vulcanico', 'imagem_path' => 'karuna/cao_vulcanico.png',
                 'descricao' => 'Pode atacar no turno em que é invocado. Recebe +1 ATK neste turno.',
                 'habilidades' => [['nome' => 'Fúria Inicial', 'tipo' => 'batalha_cry', 'gatilho' => 'ao_invocar',
@@ -72,7 +72,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Bruxa Cinzenta', 'slug' => 'bruxa-cinzenta',
                 'linhagem' => 'karuna', 'classe' => 'Bruxa', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 3, 'ataque' => 2, 'vida' => 3,
+                'tipo' => 'unit', 'custo' => 3, 'ataque' => 2, 'vida' => 3,
                 'imagem' => 'bruxa-cinzenta', 'imagem_path' => 'karuna/bruxa_cinzenta_card.png',
                 'descricao' => 'Ao atacar, o alvo recebe -1 ATK por 2 turnos.',
                 'habilidades' => [['nome' => 'Maldição Sombria', 'tipo' => 'gatilho', 'gatilho' => 'ao_atacar',
@@ -81,7 +81,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Titã Magmático', 'slug' => 'tita-magmatico',
                 'linhagem' => 'karuna', 'classe' => 'Titã', 'raridade' => 'epica',
-                'tipo' => 'unidade', 'custo' => 7, 'ataque' => 6, 'vida' => 10,
+                'tipo' => 'unit', 'custo' => 7, 'ataque' => 6, 'vida' => 10,
                 'imagem' => 'tita-magmatico', 'imagem_path' => 'karuna/tita_magmatico_card.png',
                 'descricao' => 'Não pode ser alvo de habilidades de remoção direta (Silêncio, destruição instantânea).',
                 'habilidades' => [['nome' => 'Corpo Colossal', 'tipo' => 'passiva', 'gatilho' => null,
@@ -90,7 +90,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Morcego Ígneo', 'slug' => 'morcego-igneo',
                 'linhagem' => 'karuna', 'classe' => 'Fera Voadora', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 1, 'ataque' => 1, 'vida' => 1,
+                'tipo' => 'unit', 'custo' => 1, 'ataque' => 1, 'vida' => 1,
                 'imagem' => 'morcego-igneo', 'imagem_path' => 'karuna/morcego_igneo_card.png',
                 'descricao' => 'Pode atacar o jogador inimigo diretamente mesmo com unidades inimigas em campo.',
                 'habilidades' => [['nome' => 'Ataque Direto', 'tipo' => 'passiva', 'gatilho' => null,
@@ -99,7 +99,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Rei das Correntes', 'slug' => 'rei-das-correntes',
                 'linhagem' => 'karuna', 'classe' => 'Senhor Infernal', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 6, 'ataque' => 5, 'vida' => 7,
+                'tipo' => 'unit', 'custo' => 6, 'ataque' => 5, 'vida' => 7,
                 'imagem' => 'rei-das-correntes', 'imagem_path' => 'karuna/rei_das_correntes_card.png',
                 'descricao' => 'Ativo (1 energia): força uma unidade inimiga a atacar o Rei das Correntes neste turno.',
                 'habilidades' => [['nome' => 'Gancho Infernal', 'tipo' => 'ativa', 'gatilho' => null,
@@ -110,7 +110,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Guardião do Musgo', 'slug' => 'guardiao-do-musgo',
                 'linhagem' => 'ybyra', 'classe' => 'Guardião', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 5, 'ataque' => 2, 'vida' => 9,
+                'tipo' => 'unit', 'custo' => 5, 'ataque' => 2, 'vida' => 9,
                 'imagem' => 'guardiao-do-musgo', 'imagem_path' => 'ybyra/guardiao_do_musgo_card_v2.png',
                 'descricao' => 'Recebe -1 de dano de todos os ataques (mínimo 1).',
                 'habilidades' => [['nome' => 'Casca Viva', 'tipo' => 'passiva', 'gatilho' => null,
@@ -119,7 +119,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Aranha Lunar', 'slug' => 'aranha-lunar',
                 'linhagem' => 'ybyra', 'classe' => 'Aracnídeo', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 3, 'ataque' => 2, 'vida' => 4,
+                'tipo' => 'unit', 'custo' => 3, 'ataque' => 2, 'vida' => 4,
                 'imagem' => 'aranha-lunar', 'imagem_path' => 'ybyra/aranha_lunar_card.png',
                 'descricao' => 'Ao atacar, o alvo não pode atacar no próximo turno.',
                 'habilidades' => [['nome' => 'Teia Prisional', 'tipo' => 'gatilho', 'gatilho' => 'ao_atacar',
@@ -128,7 +128,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Espírito da Raiz', 'slug' => 'espirito-da-raiz',
                 'linhagem' => 'ybyra', 'classe' => 'Espírito', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 4, 'ataque' => 1, 'vida' => 5,
+                'tipo' => 'unit', 'custo' => 4, 'ataque' => 1, 'vida' => 5,
                 'imagem' => 'espirito-da-raiz', 'imagem_path' => 'ybyra/espirito_da_raiz_card.png',
                 'descricao' => 'No início de cada turno aliado, cura 2 HP de um aliado aleatório em campo.',
                 'habilidades' => [['nome' => 'Cura Natural', 'tipo' => 'gatilho', 'gatilho' => 'inicio_turno_aliado',
@@ -137,7 +137,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Sapo Tóxico', 'slug' => 'sapo-toxico',
                 'linhagem' => 'ybyra', 'classe' => 'Anfíbio', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 2, 'ataque' => 2, 'vida' => 4,
+                'tipo' => 'unit', 'custo' => 2, 'ataque' => 2, 'vida' => 4,
                 'imagem' => 'sapo-toxico', 'imagem_path' => 'ybyra/sapo_toxico_card.png',
                 'descricao' => 'Ao atacar, aplica Veneno (1 dano por turno por 2 turnos).',
                 'habilidades' => [['nome' => 'Veneno Persistente', 'tipo' => 'gatilho', 'gatilho' => 'ao_atacar',
@@ -146,7 +146,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Cervo Fantasma', 'slug' => 'cervo-fantasma',
                 'linhagem' => 'ybyra', 'classe' => 'Espírito Animal', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 4, 'ataque' => 3, 'vida' => 3,
+                'tipo' => 'unit', 'custo' => 4, 'ataque' => 3, 'vida' => 3,
                 'imagem' => 'cervo-fantasma', 'imagem_path' => 'ybyra/cervo_fantasma_card.png',
                 'descricao' => 'Ignora o primeiro ataque ou habilidade recebida após ser invocado.',
                 'habilidades' => [['nome' => 'Esquiva Etérea', 'tipo' => 'batalha_cry', 'gatilho' => 'ao_invocar',
@@ -155,7 +155,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Hidra do Pântano', 'slug' => 'hidra-do-pantano',
                 'linhagem' => 'ybyra', 'classe' => 'Monstro', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 6, 'ataque' => 4, 'vida' => 8,
+                'tipo' => 'unit', 'custo' => 6, 'ataque' => 4, 'vida' => 8,
                 'imagem' => 'hidra-do-pantano', 'imagem_path' => 'ybyra/hidra_do_pantano_card.png',
                 'descricao' => 'Contra-ataca automaticamente uma vez por turno quando sobrevive a um ataque.',
                 'habilidades' => [['nome' => 'Múltiplas Cabeças', 'tipo' => 'passiva', 'gatilho' => null,
@@ -166,7 +166,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Drone Sentinela', 'slug' => 'drone-sentinela',
                 'linhagem' => 'ferroveu', 'classe' => 'Drone', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 2, 'ataque' => 2, 'vida' => 2,
+                'tipo' => 'unit', 'custo' => 2, 'ataque' => 2, 'vida' => 2,
                 'imagem' => 'drone-sentinela', 'imagem_path' => 'ferroveu/drone_sentinela_card.png',
                 'descricao' => 'Ao atacar, não recebe contra-ataque da unidade atacada.',
                 'habilidades' => [['nome' => 'Tiro Longo', 'tipo' => 'passiva', 'gatilho' => null,
@@ -175,7 +175,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Executor de Ferro', 'slug' => 'executor-de-ferro',
                 'linhagem' => 'ferroveu', 'classe' => 'Máquina', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 5, 'ataque' => 5, 'vida' => 6,
+                'tipo' => 'unit', 'custo' => 5, 'ataque' => 5, 'vida' => 6,
                 'imagem' => 'executor-de-ferro', 'imagem_path' => 'ferroveu/executor_de_ferro_card.png',
                 'descricao' => 'Causa +2 dano adicional contra unidades com redução de dano.',
                 'habilidades' => [['nome' => 'Quebra-Armadura', 'tipo' => 'passiva', 'gatilho' => null,
@@ -184,7 +184,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Engenheira Tesla', 'slug' => 'engenheira-tesla',
                 'linhagem' => 'ferroveu', 'classe' => 'Inventora', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 4, 'ataque' => 2, 'vida' => 4,
+                'tipo' => 'unit', 'custo' => 4, 'ataque' => 2, 'vida' => 4,
                 'imagem' => 'engenheira-tesla', 'imagem_path' => 'ferroveu/engenheira_tesla_card.png',
                 'descricao' => 'Enquanto estiver em campo, unidades Mecânicas aliadas recebem +1 ATK.',
                 'habilidades' => [['nome' => 'Sobrecarga', 'tipo' => 'aura', 'gatilho' => null,
@@ -193,7 +193,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Aranha de Sucata', 'slug' => 'aranha-de-sucata',
                 'linhagem' => 'ferroveu', 'classe' => 'Máquina', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 3, 'ataque' => 2, 'vida' => 5,
+                'tipo' => 'unit', 'custo' => 3, 'ataque' => 2, 'vida' => 5,
                 'imagem' => 'aranha-de-sucata', 'imagem_path' => 'ferroveu/aranha_de_sucata_card.png',
                 'descricao' => 'Uma vez por partida, ao chegar a 0 HP, renasce com 1 HP em campo.',
                 'habilidades' => [['nome' => 'Reconstrução', 'tipo' => 'gatilho', 'gatilho' => 'ao_morrer',
@@ -202,7 +202,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Tremor MK-II', 'slug' => 'tremor-mk-ii',
                 'linhagem' => 'ferroveu', 'classe' => 'Perfuração', 'raridade' => 'epica',
-                'tipo' => 'unidade', 'custo' => 6, 'ataque' => 5, 'vida' => 5,
+                'tipo' => 'unit', 'custo' => 6, 'ataque' => 5, 'vida' => 5,
                 'imagem' => 'tremor-mk-ii', 'imagem_path' => 'ferroveu/tremor_mk_ii_card.png',
                 'descricao' => 'Pode atacar no turno em que é invocado (Charge).',
                 'habilidades' => [['nome' => 'Escavação', 'tipo' => 'batalha_cry', 'gatilho' => 'ao_invocar',
@@ -211,7 +211,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Núcleo Autômato', 'slug' => 'nucleo-automato',
                 'linhagem' => 'ferroveu', 'classe' => 'Núcleo', 'raridade' => 'epica',
-                'tipo' => 'unidade', 'custo' => 5, 'ataque' => 1, 'vida' => 4,
+                'tipo' => 'unit', 'custo' => 5, 'ataque' => 1, 'vida' => 4,
                 'imagem' => 'nucleo-automato', 'imagem_path' => 'ferroveu/nucleo_automato_card.png',
                 'descricao' => 'No início de cada turno aliado, concede +1 energia temporária (não acumula).',
                 'habilidades' => [['nome' => 'Gerador', 'tipo' => 'gatilho', 'gatilho' => 'inicio_turno_aliado',
@@ -222,7 +222,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Cavaleiro Sem Face', 'slug' => 'cavaleiro-sem-face',
                 'linhagem' => 'anhanga', 'classe' => 'Morto-vivo', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 4, 'ataque' => 4, 'vida' => 5,
+                'tipo' => 'unit', 'custo' => 4, 'ataque' => 4, 'vida' => 5,
                 'imagem' => 'cavaleiro-sem-face', 'imagem_path' => 'anhanga/cavaleiro_sem_face_card.png',
                 'descricao' => 'Imune a Silêncio, Teia Prisional e Confusão.',
                 'habilidades' => [['nome' => 'Sem Medo', 'tipo' => 'passiva', 'gatilho' => null,
@@ -231,7 +231,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Costureira Macabra', 'slug' => 'costureira-macabra',
                 'linhagem' => 'anhanga', 'classe' => 'Necromante', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 5, 'ataque' => 3, 'vida' => 5,
+                'tipo' => 'unit', 'custo' => 5, 'ataque' => 3, 'vida' => 5,
                 'imagem' => 'costureira-macabra', 'imagem_path' => 'anhanga/costureira_macabra_card.png',
                 'descricao' => 'Ao atacar, recupera HP igual ao dano causado (máximo 3 por ataque).',
                 'habilidades' => [['nome' => 'Roubo Vital', 'tipo' => 'gatilho', 'gatilho' => 'ao_atacar',
@@ -240,7 +240,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Corvo Funerário', 'slug' => 'corvo-funerario',
                 'linhagem' => 'anhanga', 'classe' => 'Ave Sombria', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 1, 'ataque' => 1, 'vida' => 1,
+                'tipo' => 'unit', 'custo' => 1, 'ataque' => 1, 'vida' => 1,
                 'imagem' => 'corvo-funerario', 'imagem_path' => 'anhanga/corvo_funerario_card.png',
                 'descricao' => 'Ao ser invocado, revela a próxima carta do deck inimigo.',
                 'habilidades' => [['nome' => 'Observador', 'tipo' => 'batalha_cry', 'gatilho' => 'ao_invocar',
@@ -249,7 +249,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Monge Apodrecido', 'slug' => 'monge-apodrecido',
                 'linhagem' => 'anhanga', 'classe' => 'Monge', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 4, 'ataque' => 2, 'vida' => 6,
+                'tipo' => 'unit', 'custo' => 4, 'ataque' => 2, 'vida' => 6,
                 'imagem' => 'monge-apodrecido', 'imagem_path' => 'anhanga/monge_apodrecido_card.png',
                 'descricao' => 'Ao atacar, aplica Silêncio por 1 turno. Não funciona contra Sem Medo.',
                 'habilidades' => [['nome' => 'Silêncio', 'tipo' => 'gatilho', 'gatilho' => 'ao_atacar',
@@ -258,7 +258,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Gigante Ossuário', 'slug' => 'gigante-ossuario',
                 'linhagem' => 'anhanga', 'classe' => 'Colosso', 'raridade' => 'epica',
-                'tipo' => 'unidade', 'custo' => 7, 'ataque' => 5, 'vida' => 10,
+                'tipo' => 'unit', 'custo' => 7, 'ataque' => 5, 'vida' => 10,
                 'imagem' => 'gigante-ossuario', 'imagem_path' => 'anhanga/gigante_ossuario_card.png',
                 'descricao' => 'Ganha +1 redução de dano permanente a cada ataque recebido (máximo +3).',
                 'habilidades' => [['nome' => 'Ossos Reforçados', 'tipo' => 'passiva', 'gatilho' => null,
@@ -267,7 +267,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Criança do Véu', 'slug' => 'crianca-do-veu',
                 'linhagem' => 'anhanga', 'classe' => 'Fantasma', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 3, 'ataque' => 1, 'vida' => 4,
+                'tipo' => 'unit', 'custo' => 3, 'ataque' => 1, 'vida' => 4,
                 'imagem' => 'crianca-do-veu', 'imagem_path' => 'anhanga/crianca_do_veu_card.png',
                 'descricao' => 'Ao atacar, o alvo tem 50% de chance de errar o próximo ataque.',
                 'habilidades' => [['nome' => 'Confusão', 'tipo' => 'gatilho', 'gatilho' => 'ao_atacar',
@@ -278,7 +278,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Oráculo Solar', 'slug' => 'oraculo-solar',
                 'linhagem' => 'orun', 'classe' => 'Celestial', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 4, 'ataque' => 2, 'vida' => 4,
+                'tipo' => 'unit', 'custo' => 4, 'ataque' => 2, 'vida' => 4,
                 'imagem' => 'oraculo-solar', 'imagem_path' => 'orun/oraculo_solar_card.png',
                 'descricao' => 'Ativo (1 energia): revela as 3 próximas cartas do deck inimigo.',
                 'habilidades' => [['nome' => 'Profecia', 'tipo' => 'ativa', 'gatilho' => null,
@@ -287,7 +287,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Aberração do Vazio', 'slug' => 'aberracao-do-vazio',
                 'linhagem' => 'orun', 'classe' => 'Void', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 5, 'ataque' => 4, 'vida' => 5,
+                'tipo' => 'unit', 'custo' => 5, 'ataque' => 4, 'vida' => 5,
                 'imagem' => 'aberracao-do-vazio', 'imagem_path' => 'orun/aberracao_do_vazio_card_fixed.png',
                 'descricao' => 'Ao ser invocado, destrói uma unidade inimiga aleatória (sem disparar ao morrer).',
                 'habilidades' => [['nome' => 'Dobra Espacial', 'tipo' => 'batalha_cry', 'gatilho' => 'ao_invocar',
@@ -296,7 +296,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Serafim Partido', 'slug' => 'serafim-partido',
                 'linhagem' => 'orun', 'classe' => 'Anjo', 'raridade' => 'epica',
-                'tipo' => 'unidade', 'custo' => 6, 'ataque' => 3, 'vida' => 7,
+                'tipo' => 'unit', 'custo' => 6, 'ataque' => 3, 'vida' => 7,
                 'imagem' => 'serafim-partido', 'imagem_path' => 'orun/serafim_partido_card.png',
                 'descricao' => 'Ativo (2 energia): revive a última unidade aliada destruída com metade do HP máximo.',
                 'habilidades' => [['nome' => 'Renascimento', 'tipo' => 'ativa', 'gatilho' => null,
@@ -305,7 +305,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Eclipse Vivo', 'slug' => 'eclipse-vivo',
                 'linhagem' => 'orun', 'classe' => 'Entidade', 'raridade' => 'rara',
-                'tipo' => 'unidade', 'custo' => 5, 'ataque' => 2, 'vida' => 8,
+                'tipo' => 'unit', 'custo' => 5, 'ataque' => 2, 'vida' => 8,
                 'imagem' => 'eclipse-vivo', 'imagem_path' => 'orun/eclipse_vivo_card.png',
                 'descricao' => 'Enquanto estiver em campo, todas as unidades inimigas têm -1 ATK.',
                 'habilidades' => [['nome' => 'Escuridão Total', 'tipo' => 'aura', 'gatilho' => null,
@@ -314,7 +314,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Navegante Astral', 'slug' => 'navegante-astral',
                 'linhagem' => 'orun', 'classe' => 'Mago Astral', 'raridade' => 'comum',
-                'tipo' => 'unidade', 'custo' => 4, 'ataque' => 3, 'vida' => 4,
+                'tipo' => 'unit', 'custo' => 4, 'ataque' => 3, 'vida' => 4,
                 'imagem' => 'navegante-astral', 'imagem_path' => 'orun/navegante_astral_card.png',
                 'descricao' => 'Ao ser invocado, retorna um aliado em campo para a mão (ou cemitério se mão cheia).',
                 'habilidades' => [['nome' => 'Troca Dimensional', 'tipo' => 'batalha_cry', 'gatilho' => 'ao_invocar',
@@ -323,7 +323,7 @@ class CartasSeeder extends Seeder
             [
                 'nome' => 'Devorador de Estrelas', 'slug' => 'devorador-de-estrelas',
                 'linhagem' => 'orun', 'classe' => 'Entidade Cósmica', 'raridade' => 'lendaria',
-                'tipo' => 'unidade', 'custo' => 8, 'ataque' => 6, 'vida' => 8,
+                'tipo' => 'unit', 'custo' => 8, 'ataque' => 6, 'vida' => 8,
                 'imagem' => 'devorador-de-estrelas', 'imagem_path' => 'orun/devorador_de_estrelas_card_fixed.png',
                 'descricao' => 'Quando qualquer unidade morre, ganha +1 ATK e +1 HP permanentes (máximo +3/+3).',
                 'habilidades' => [['nome' => 'Consumo Cósmico', 'tipo' => 'gatilho', 'gatilho' => 'qualquer_unidade_morre',
@@ -365,7 +365,7 @@ class CartasSeeder extends Seeder
             'linhagem' => $linhagem,
             'classe' => $classe,
             'raridade' => $raridade,
-            'tipo' => 'unidade',
+            'tipo' => 'unit',
             'custo' => $custo,
             'ataque' => $ataque,
             'vida' => $vida,
