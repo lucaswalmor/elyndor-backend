@@ -205,6 +205,8 @@ class ItemStreamerSeeder extends Seeder
         'pacto-de-sangue',
         'ruptura-dimensional',
         'colapso-do-vazio',
+        'sacrificio-tatico',
+        'tempestade-arcana',
     ];
 
     public function run(): void

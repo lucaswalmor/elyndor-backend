@@ -3,7 +3,9 @@
 namespace App\Services\Logging;
 
 use App\Models\GameMatch;
+use App\Models\MatchLog;
 use App\Services\Bot\SubstituteDifficultyResolver;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -25,12 +27,23 @@ final class GameBalanceMatchTelemetry
     public static function matchStarted(GameMatch $match): void
     {
         $match->loadMissing('players.user');
+        $estado = $match->estado ?? [];
 
-        self::registrar($match, 'info', 'match.started', [
+        $contexto = [
             'turno' => $match->turno,
             'jogador_da_vez' => $match->jogador_da_vez,
-            'estado_completo' => $match->estado,
-        ]);
+            'estado_completo' => $estado !== [] ? $estado : null,
+            'resumo_estado' => $estado !== [] ? self::resumoEstado($estado) : null,
+        ];
+
+        if (self::partidaTemBot($match)) {
+            $slotBot = self::slotDoBot($match);
+            if ($slotBot !== null) {
+                $contexto['contexto_bot'] = self::contextoBot($match, $slotBot);
+            }
+        }
+
+        self::registrar($match, 'info', 'match.started', $contexto);
     }
 
     /**
@@ -154,11 +167,18 @@ final class GameBalanceMatchTelemetry
 
         if (self::partidaTemBot($match)) {
             $contexto['analise_vs_bot'] = self::analiseResultadoVsBot($match, $vencedorUserId);
+            $contexto['contexto_bot'] = self::contextoBot($match, self::slotDoBot($match) ?? 1);
+            $contexto['linha_tempo_partida'] = self::linhaTempoPartida($match);
+            $contexto['estatisticas_partida'] = self::estatisticasPartida($match);
         } else {
             $contexto['analise_pvp'] = self::analiseResultadoPvp($match, $vencedorUserId);
+            $contexto['linha_tempo_partida'] = self::linhaTempoPartida($match);
+            $contexto['estatisticas_partida'] = self::estatisticasPartida($match);
         }
 
         self::registrar($match, 'info', 'match.finished', $contexto);
+
+        Cache::forget(self::chaveSequenciaPartida($match->id));
     }
 
     /**
@@ -205,8 +225,114 @@ final class GameBalanceMatchTelemetry
 
         Log::channel($canal)->{$nivel}($evento, array_merge(
             self::envelopePartida($match),
+            ['sequencia_evento' => self::proximaSequencia($match->id)],
             $contexto,
         ));
+    }
+
+    private static function chaveSequenciaPartida(int $matchId): string
+    {
+        return "game_balance:sequencia:{$matchId}";
+    }
+
+    private static function proximaSequencia(int $matchId): int
+    {
+        $chave = self::chaveSequenciaPartida($matchId);
+
+        if (! Cache::has($chave)) {
+            Cache::put($chave, 0, now()->addHours(6));
+        }
+
+        return (int) Cache::increment($chave);
+    }
+
+    private static function slotDoBot(GameMatch $match): ?int
+    {
+        if (! $match->relationLoaded('players')) {
+            $match->loadMissing('players');
+        }
+
+        $participanteBot = $match->players->first(fn ($participante) => $participante->is_bot);
+
+        return $participanteBot !== null ? (int) $participanteBot->player_slot : null;
+    }
+
+    /**
+     * Cronologia completa das ações persistidas (MatchLog) — útil para reconstruir a partida.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function linhaTempoPartida(GameMatch $match): array
+    {
+        $match->loadMissing('players');
+
+        return MatchLog::query()
+            ->where('match_id', $match->id)
+            ->orderBy('id')
+            ->get()
+            ->map(function (MatchLog $registro) use ($match) {
+                $slotAtor = self::slotDoUsuario($match, (int) $registro->user_id);
+
+                return [
+                    'id' => $registro->id,
+                    'turno' => $registro->turno,
+                    'user_id' => $registro->user_id,
+                    'actor_slot' => $slotAtor,
+                    'actor_eh_bot' => $slotAtor !== null && self::slotEhBot($match, $slotAtor),
+                    'acao' => $registro->acao,
+                    'card_id' => $registro->card_id,
+                    'card_alvo_id' => $registro->card_alvo_id,
+                    'dano_causado' => $registro->dano_causado,
+                    'vida_antes' => $registro->vida_antes,
+                    'vida_depois' => $registro->vida_depois,
+                    'efeito_tipo' => $registro->efeito_tipo,
+                    'meta' => $registro->meta,
+                    'created_at' => $registro->created_at?->toIso8601String(),
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function estatisticasPartida(GameMatch $match): array
+    {
+        $match->loadMissing('players');
+
+        $registros = MatchLog::query()
+            ->where('match_id', $match->id)
+            ->orderBy('id')
+            ->get();
+
+        $acoesPorSlot = [1 => 0, 2 => 0];
+        $acoesPorTipo = [];
+        $acoesHumano = 0;
+        $acoesBot = 0;
+
+        foreach ($registros as $registro) {
+            $slotAtor = self::slotDoUsuario($match, (int) $registro->user_id);
+            if ($slotAtor !== null) {
+                $acoesPorSlot[$slotAtor] = ($acoesPorSlot[$slotAtor] ?? 0) + 1;
+                if (self::slotEhBot($match, $slotAtor)) {
+                    $acoesBot++;
+                } else {
+                    $acoesHumano++;
+                }
+            }
+
+            $tipoAcao = (string) $registro->acao;
+            $acoesPorTipo[$tipoAcao] = ($acoesPorTipo[$tipoAcao] ?? 0) + 1;
+        }
+
+        return [
+            'total_acoes' => $registros->count(),
+            'acoes_humano' => $acoesHumano,
+            'acoes_bot' => $acoesBot,
+            'acoes_por_slot' => $acoesPorSlot,
+            'acoes_por_tipo' => $acoesPorTipo,
+            'turnos_jogados' => $match->turno,
+        ];
     }
 
     /**
