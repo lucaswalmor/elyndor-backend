@@ -468,6 +468,24 @@ class MatchEngine
             'alvo_instancia_id' => $payload['alvo_instancia_id'] ?? null,
         ];
         $this->effects->applyBattleCry($estado, $slot, $unitRef, $animacoes, $contextoGrito);
+
+        // Buff do Sacrifício Tático: aplica à próxima unidade invocada neste turno
+        $jogadorRef = &$estado['jogadores'][(string) $slot];
+        if (isset($jogadorRef['proximo_invocado_buff'])) {
+            $buffSacrificio = $jogadorRef['proximo_invocado_buff'];
+            unset($jogadorRef['proximo_invocado_buff']);
+            $bonusAtk = (int) ($buffSacrificio['ataque'] ?? 0);
+            $bonusHp  = (int) ($buffSacrificio['hp'] ?? 0);
+            if ($bonusAtk > 0) {
+                $unitRef['bonus_ataque'] = ($unitRef['bonus_ataque'] ?? 0) + $bonusAtk;
+                $animacoes[] = ['tipo' => 'buff_ataque', 'instancia_id' => $unitRef['instancia_id'], 'valor' => $bonusAtk];
+            }
+            if ($bonusHp > 0) {
+                $unitRef['vida_max']   = ($unitRef['vida_max'] ?? 1) + $bonusHp;
+                $unitRef['vida_atual'] = ($unitRef['vida_atual'] ?? 1) + $bonusHp;
+                $animacoes[] = ['tipo' => 'buff_hp', 'instancia_id' => $unitRef['instancia_id'], 'valor' => $bonusHp];
+            }
+        }
     }
 
     private function castSpell(array &$estado, int $slot, array $payload, array &$animacoes): void
@@ -499,6 +517,9 @@ class MatchEngine
         $ctx = $this->spellContext($estado, $slot, $efeito, $payload);
         $alvo = $ctx['alvo'] ?? null;
         $alvoSlot = $ctx['alvo_slot'] ?? null;
+
+        // Valida pré-requisitos especiais antes de gastar energia
+        $this->effects->checkSpellPrerequisites($estado, $slot, $efeito);
 
         $player['energia_atual'] -= $card->custo;
         array_splice($hand, $idx, 1);

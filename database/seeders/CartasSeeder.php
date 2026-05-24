@@ -80,7 +80,7 @@ class CartasSeeder extends Seeder
             ],
             [
                 'nome' => 'Titã Magmático', 'slug' => 'tita-magmatico',
-                'linhagem' => 'karuna', 'classe' => 'Titã', 'raridade' => 'epica',
+                'linhagem' => 'karuna', 'classe' => 'Titã', 'raridade' => 'lendaria',
                 'tipo' => 'unit', 'custo' => 7, 'ataque' => 6, 'vida' => 10,
                 'imagem' => 'tita-magmatico', 'imagem_path' => 'karuna/tita_magmatico_card.png',
                 'descricao' => 'Não pode ser alvo de habilidades de remoção direta (Silêncio, destruição instantânea).',
@@ -257,7 +257,7 @@ class CartasSeeder extends Seeder
             ],
             [
                 'nome' => 'Gigante Ossuário', 'slug' => 'gigante-ossuario',
-                'linhagem' => 'anhanga', 'classe' => 'Colosso', 'raridade' => 'epica',
+                'linhagem' => 'anhanga', 'classe' => 'Colosso', 'raridade' => 'lendaria',
                 'tipo' => 'unit', 'custo' => 7, 'ataque' => 5, 'vida' => 10,
                 'imagem' => 'gigante-ossuario', 'imagem_path' => 'anhanga/gigante_ossuario_card.png',
                 'descricao' => 'Ganha +1 redução de dano permanente a cada ataque recebido (máximo +3).',
@@ -674,15 +674,38 @@ class CartasSeeder extends Seeder
     private function spellsV21(): array
     {
         return [
+            // ── Comuns ────────────────────────────────────────────────────────────────
             $this->spell('Faísca Arcana', 'faisca-arcana', 'Feitiço - Dano', 'comum', 1, 'spells/faisca_arcana.png', 'Causa 2 de dano a uma unidade inimiga à escolha.', ['tipo' => 'dano_alvo', 'valor' => 2, 'alvo' => 'unidade_inimiga']),
             $this->spell('Toque Vital', 'toque-vital', 'Feitiço - Cura', 'comum', 1, 'spells/toque_vital.png', 'Cura 3 HP de uma unidade aliada à escolha.', ['tipo' => 'cura_alvo', 'valor' => 3, 'alvo' => 'unidade_aliada']),
             $this->spell('Sopro de Força', 'sopro-de-forca', 'Feitiço - Buff', 'comum', 1, 'spells/sopro_de_forca.png', 'Uma unidade aliada ganha +2 ATK neste turno.', ['tipo' => 'buff_ataque_turno', 'valor' => 2, 'alvo' => 'unidade_aliada']),
             $this->spell('Golpe Enfraquecedor', 'golpe-enfraquecedor', 'Feitiço - Debuff', 'comum', 1, 'spells/golpe_enfraquecedor.png', 'Uma unidade inimiga perde -1 ATK por 1 turno.', ['tipo' => 'debuff_ataque', 'valor' => 1, 'duracao' => 1, 'alvo' => 'unidade_inimiga']),
             $this->spell('Véu Passageiro', 'veu-passageiro', 'Feitiço - Defesa', 'comum', 2, 'spells/veu_passageiro.png', 'Aplica Véu Arcano em uma unidade aliada à escolha.', ['tipo' => 'veu_arcano', 'cargas' => 1, 'alvo' => 'unidade_aliada']),
+            $this->spell('Véu Arcano', 'veu-arcano', 'Feitiço - Defesa', 'comum', 2, 'spells/veu_arcano.png', 'Aplica Véu Arcano em uma unidade aliada à escolha.', ['tipo' => 'veu_arcano', 'cargas' => 1, 'alvo' => 'unidade_aliada']),
             $this->spell('Choque Paralisante', 'choque-paralisante', 'Feitiço - Controle', 'comum', 2, 'spells/choque_paralisante.png', 'Aplica Paralisia em uma unidade inimiga por 1 turno.', ['tipo' => 'paralisia', 'duracao' => 1, 'alvo' => 'unidade_inimiga']),
             $this->spell('Pulso Restaurador', 'pulso-restaurador', 'Feitiço - Cura', 'comum', 2, 'spells/pulso_restaurador.png', 'Cura 2 HP de todos os aliados em campo.', ['tipo' => 'cura_todos_aliados', 'valor' => 2]),
             $this->spell('Ímpeto Momentâneo', 'impeto-momentaneo', 'Feitiço - Buff', 'comum', 2, 'spells/impeto_momentaneo.png', 'Uma unidade aliada pode atacar novamente neste turno.', ['tipo' => 'liberar_ataque_extra', 'alvo' => 'unidade_aliada', 'limite_por_turno' => 1]),
             $this->spell('Silêncio Repentino', 'silencio-repentino', 'Feitiço - Controle', 'comum', 2, 'spells/silencio_repentino.png', 'Aplica Silêncio em uma unidade inimiga por 1 turno.', ['tipo' => 'silencio', 'duracao' => 1, 'alvo' => 'unidade_inimiga']),
+            $this->spell('Névoa da Confusão', 'nevoa-da-confusao', 'Feitiço - Controle', 'comum', 3, 'spells/nevoa_da_confusao.png', 'Aplica Confusão em duas unidades inimigas aleatórias por 1 turno.', ['tipo' => 'confusao_2_aleatorios_inimigos', 'quantidade' => 2]),
+            $this->spell('Escudo de Emergência', 'escudo-de-emergencia', 'Feitiço - Defesa', 'comum', 3, 'spells/escudo_de_emergencia.png', 'Uma unidade aliada ganha +3 HP permanentemente e Véu Arcano.', ['tipo' => 'buff_hp_veu_arcano', 'valor' => 3, 'alvo' => 'unidade_aliada']),
+            $this->spell('Punição Arcana', 'punicao-arcana', 'Feitiço - Dano', 'comum', 3, 'spells/punicao_arcana.png', 'Causa 2 de dano a uma unidade inimiga à escolha.', ['tipo' => 'dano_alvo', 'valor' => 2, 'alvo' => 'unidade_inimiga']),
+
+            // ── Raras ─────────────────────────────────────────────────────────────────
+            $this->spell('Explosão Arcana', 'explosao-arcana', 'Feitiço - Dano em Área', 'rara', 3, 'spells/explosao_arcana.png', 'Causa 1 de dano a todas as unidades inimigas em campo.', ['tipo' => 'dano_todas_inimigas', 'valor' => 1]),
+            $this->spell('Sacrifício Tático', 'sacrificio-tatico', 'Feitiço - Buff/Sacrifício', 'rara', 3, 'spells/sacrificio_tatico.png', 'Destrói uma unidade aliada. A próxima unidade aliada invocada neste turno entra com +2 ATK e +2 HP.', ['tipo' => 'sacrificio_buff_proxima_invocacao', 'ataque' => 2, 'hp' => 2, 'alvo' => 'unidade_aliada']),
+            $this->spell('Canalização de Poder', 'canalizacao-de-poder', 'Feitiço - Buff', 'rara', 3, 'spells/canalizacao_de_poder.png', 'Uma unidade aliada ganha +2 ATK e +2 HP permanentes.', ['tipo' => 'buff_ataque_hp_permanente', 'ataque' => 2, 'hp' => 2, 'alvo' => 'unidade_aliada']),
+            $this->spell('Onda de Choque', 'onda-de-choque', 'Feitiço - Controle', 'rara', 4, 'spells/onda_de_choque.png', 'Aplica Paralisia em até 2 unidades inimigas aleatórias por 1 turno.', ['tipo' => 'paralisia_2_aleatorios_inimigos', 'quantidade' => 2, 'duracao' => 1]),
+            $this->spell('Restauração Completa', 'restauracao-completa', 'Feitiço - Cura', 'rara', 4, 'spells/restauracao_completa.png', 'Cura completamente uma unidade aliada (HP máximo) e remove todos os debuffs.', ['tipo' => 'cura_max_remover_debuffs', 'alvo' => 'unidade_aliada']),
+            $this->spell('Silêncio em Massa', 'silencio-em-massa', 'Feitiço - Controle', 'rara', 4, 'spells/silencio_em_massa.png', 'Aplica Silêncio em todas as unidades inimigas em campo por 1 turno.', ['tipo' => 'silencio_todos_inimigos']),
+            $this->spell('Inversão de Força', 'inversao-de-forca', 'Feitiço - Especial', 'rara', 4, 'spells/inversao_de_forca.png', 'Troca os valores de ATK e HP de uma unidade inimiga até o fim do turno.', ['tipo' => 'inversao_ataque_hp', 'alvo' => 'unidade_inimiga']),
+
+            // ── Épicas ────────────────────────────────────────────────────────────────
+            $this->spell('Ascensão', 'acensao', 'Feitiço - Buff', 'epica', 4, 'spells/acensao.png', 'Uma unidade aliada ganha +3 ATK e +3 HP permanentes.', ['tipo' => 'buff_ataque_hp_permanente', 'ataque' => 3, 'hp' => 3, 'alvo' => 'unidade_aliada']),
+            $this->spell('Tempestade Arcana', 'tempestade-arcana', 'Feitiço - Dano em Área', 'epica', 5, 'spells/tempestade_arcana.png', 'Causa 3 de dano a todas as unidades inimigas. Sobreviventes recebem Paralisia por 1 turno.', ['tipo' => 'tempestade_arcana', 'dano' => 3, 'duracao_paralisia' => 1]),
+            $this->spell('Pacto de Sangue', 'pacto-de-sangue', 'Feitiço - Especial', 'epica', 5, 'spells/pacto_de_sangue.png', 'O jogador perde 5 HP. Todas as unidades aliadas ganham +2 ATK e +2 HP permanentes e Véu Arcano.', ['tipo' => 'pacto_de_sangue', 'dano_proprio' => 5, 'ataque' => 2, 'hp' => 2]),
+            $this->spell('Ruptura Dimensional', 'ruptura-dimensional', 'Feitiço - Remoção', 'epica', 5, 'spells/ruptura_dimensional.png', 'Destrói a unidade inimiga com maior HP em campo (não funciona em unidades com Véu Arcano ou Provocar).', ['tipo' => 'destruir_maior_hp_inimigo']),
+
+            // ── Lendária ──────────────────────────────────────────────────────────────
+            $this->spell('Colapso do Vazio', 'colapso-do-vazio', 'Feitiço - Especial', 'lendaria', 8, 'spells/colapso_do_vazio.png', 'Destrói todas as unidades em campo. Recupera 3 HP por unidade aliada destruída. Requer ao menos 2 aliados.', ['tipo' => 'colapso_do_vazio', 'cura_por_aliada' => 3]),
         ];
     }
 }

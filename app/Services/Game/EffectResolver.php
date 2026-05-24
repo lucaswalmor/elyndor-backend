@@ -202,6 +202,98 @@ class EffectResolver
             case 'provocar':
                 $this->addFlag($estado, $unit, 'taunt_self', $animacoes);
                 break;
+
+            // ── Novos feitiços v2.1 ───────────────────────────────────────────────────
+
+            case 'buff_hp_veu_arcano':
+                // Escudo de Emergência: +N HP permanente + Véu Arcano na aliada alvo
+                $this->buffHpPermanente($estado, $alvo, (int) ($efeito['valor'] ?? 3), $animacoes);
+                if ($alvo !== null) {
+                    $alvoCopia = $alvo;
+                    $this->addFlag($estado, $alvoCopia, 'escudo', $animacoes);
+                }
+                break;
+
+            case 'buff_ataque_hp_permanente':
+                // Canalização de Poder / Ascensão: +N ATK e +N HP permanentes na aliada alvo
+                $this->buffAtaqueHpPermanente($estado, $alvo, (int) ($efeito['ataque'] ?? 2), (int) ($efeito['hp'] ?? 2), $animacoes);
+                break;
+
+            case 'confusao_2_aleatorios_inimigos':
+                // Névoa da Confusão: confusão em N inimigas aleatórias
+                $this->confusaoAleatoriosInimigos($estado, $slot, (int) ($efeito['quantidade'] ?? 2), $animacoes);
+                break;
+
+            case 'paralisia_2_aleatorios_inimigos':
+                // Onda de Choque: paralisia em N inimigas aleatórias
+                $this->paralisia2AleatoriosInimigos($estado, $slot, (int) ($efeito['quantidade'] ?? 2), (int) ($efeito['duracao'] ?? 1), $animacoes);
+                break;
+
+            case 'cura_max_remover_debuffs':
+                // Restauração Completa: cura HP máximo + remove todos os debuffs da aliada alvo
+                $this->curaMaxRemoverDebuffs($estado, $alvo, $animacoes);
+                break;
+
+            case 'silencio_todos_inimigos':
+                // Silêncio em Massa: silencia todas as unidades inimigas em campo
+                $this->silencioTodosInimigos($estado, $slot, $animacoes);
+                break;
+
+            case 'inversao_ataque_hp':
+                // Inversão de Força: troca ATK e HP da unidade inimiga alvo
+                $this->inversaoAtaqueHp($estado, $alvo, $animacoes);
+                break;
+
+            case 'sacrificio_buff_proxima_invocacao':
+                // Sacrifício Tático: destrói aliada alvo, próxima invocação ganha +N/+N
+                $this->sacrificioBuff($estado, $slot, $alvo, (int) ($efeito['ataque'] ?? 2), (int) ($efeito['hp'] ?? 2), $animacoes);
+                break;
+
+            case 'tempestade_arcana':
+                // Tempestade Arcana: N dano a todas inimigas + paralisia nas sobreviventes
+                $this->tempestadeArcana($estado, $slot, (int) ($efeito['dano'] ?? 3), (int) ($efeito['duracao_paralisia'] ?? 1), $animacoes);
+                break;
+
+            case 'pacto_de_sangue':
+                // Pacto de Sangue: -N HP ao jogador + +N/+N + Véu Arcano em todos os aliados
+                $this->pactoDeSangue($estado, $slot, (int) ($efeito['dano_proprio'] ?? 5), (int) ($efeito['ataque'] ?? 2), (int) ($efeito['hp'] ?? 2), $animacoes);
+                break;
+
+            case 'destruir_maior_hp_inimigo':
+                // Ruptura Dimensional: destrói a unidade inimiga com maior HP (sem véu, sem provocar)
+                $this->destruirMaiorHpInimigo($estado, $slot, $animacoes);
+                break;
+
+            case 'colapso_do_vazio':
+                // Colapso do Vazio: destrói todas as unidades em campo, recupera HP por aliada destruída
+                $this->colapsoDovazio($estado, $slot, (int) ($efeito['cura_por_aliada'] ?? 3), $animacoes);
+                break;
+        }
+    }
+
+    /**
+     * Valida pré-requisitos de feitiços antes de gastar energia.
+     * Lança InvalidArgumentException se a condição não for satisfeita.
+     */
+    public function checkSpellPrerequisites(array $estado, int $slot, array $efeito): void
+    {
+        $tipo = $efeito['tipo'] ?? '';
+
+        if ($tipo === 'colapso_do_vazio' && count($estado['campo'][$slot]) < 2) {
+            throw new \InvalidArgumentException('Colapso do Vazio requer ao menos 2 unidades aliadas em campo');
+        }
+
+        if ($tipo === 'sacrificio_buff_proxima_invocacao') {
+            if (empty($estado['campo'][$slot])) {
+                throw new \InvalidArgumentException('Sacrifício Tático requer ao menos 1 unidade aliada em campo');
+            }
+        }
+
+        if ($tipo === 'pacto_de_sangue') {
+            $vidaAtual = $estado['jogadores'][(string) $slot]['vida'] ?? 0;
+            if ($vidaAtual <= 5) {
+                throw new \InvalidArgumentException('HP insuficiente para usar Pacto de Sangue');
+            }
         }
     }
 
@@ -560,14 +652,269 @@ class EffectResolver
             return;
         }
         $unit['vida_atual'] = $novaVida;
-        // Sincroniza no estado
-        foreach ($estado['campo'][$slot] as &$u) {
-            if ($u['instancia_id'] === $unit['instancia_id']) {
-                $u['vida_atual'] = $novaVida;
+        foreach ($estado['campo'][$slot] as &$unidadeLoop) {
+            if ($unidadeLoop['instancia_id'] === $unit['instancia_id']) {
+                $unidadeLoop['vida_atual'] = $novaVida;
                 break;
             }
         }
-        unset($u);
+        unset($unidadeLoop);
         $animacoes[] = ['tipo' => 'cura', 'instancia_id' => $unit['instancia_id'], 'valor' => $healReal];
+    }
+
+    // ── Helpers para os novos feitiços v2.1 ──────────────────────────────────────
+
+    /**
+     * Aumenta permanentemente o HP máximo e atual de uma unidade.
+     */
+    private function buffHpPermanente(array &$estado, ?array &$unit, int $quantidade, array &$animacoes): void
+    {
+        if (! $unit || $quantidade <= 0) {
+            return;
+        }
+        $unit['vida_max']   = ($unit['vida_max'] ?? 1) + $quantidade;
+        $unit['vida_atual'] = ($unit['vida_atual'] ?? 1) + $quantidade;
+        $animacoes[] = ['tipo' => 'buff_hp', 'instancia_id' => $unit['instancia_id'], 'valor' => $quantidade];
+        $this->syncToState($estado, $unit);
+    }
+
+    /**
+     * Aumenta permanentemente o ATK (bonus_ataque) e o HP de uma unidade.
+     */
+    private function buffAtaqueHpPermanente(array &$estado, ?array &$unit, int $ataque, int $hp, array &$animacoes): void
+    {
+        if (! $unit) {
+            return;
+        }
+        if ($ataque > 0) {
+            $unit['bonus_ataque'] = ($unit['bonus_ataque'] ?? 0) + $ataque;
+            $animacoes[] = ['tipo' => 'buff_ataque', 'instancia_id' => $unit['instancia_id'], 'valor' => $ataque];
+        }
+        if ($hp > 0) {
+            $unit['vida_max']   = ($unit['vida_max'] ?? 1) + $hp;
+            $unit['vida_atual'] = ($unit['vida_atual'] ?? 1) + $hp;
+            $animacoes[] = ['tipo' => 'buff_hp', 'instancia_id' => $unit['instancia_id'], 'valor' => $hp];
+        }
+        $this->syncToState($estado, $unit);
+    }
+
+    /**
+     * Névoa da Confusão: aplica Confusão em N unidades inimigas aleatórias.
+     */
+    private function confusaoAleatoriosInimigos(array &$estado, int $slot, int $quantidade, array &$animacoes): void
+    {
+        $oponente   = $slot === 1 ? 2 : 1;
+        $instancias = array_column($estado['campo'][$oponente] ?? [], 'instancia_id');
+        shuffle($instancias);
+        $alvos = array_slice($instancias, 0, $quantidade);
+
+        foreach ($alvos as $instanciaId) {
+            $unidade = $this->engine->findUnit($estado, $oponente, $instanciaId);
+            if ($unidade && ! $this->hasPassive($unidade['card_id'], 'imune_controle')) {
+                $this->addEffect($estado, $unidade, 'confusao', ['duracao' => 1], $animacoes);
+            }
+        }
+    }
+
+    /**
+     * Onda de Choque: aplica Paralisia em N unidades inimigas aleatórias.
+     */
+    private function paralisia2AleatoriosInimigos(array &$estado, int $slot, int $quantidade, int $duracao, array &$animacoes): void
+    {
+        $oponente   = $slot === 1 ? 2 : 1;
+        $instancias = array_column($estado['campo'][$oponente] ?? [], 'instancia_id');
+        shuffle($instancias);
+        $alvos = array_slice($instancias, 0, $quantidade);
+
+        foreach ($alvos as $instanciaId) {
+            $unidade = $this->engine->findUnit($estado, $oponente, $instanciaId);
+            if ($unidade && ! $this->hasPassive($unidade['card_id'], 'imune_controle')) {
+                $this->addEffect($estado, $unidade, 'paralisia', ['duracao' => $duracao], $animacoes);
+            }
+        }
+    }
+
+    /**
+     * Restauração Completa: cura unidade ao HP máximo e remove todos os debuffs.
+     */
+    private function curaMaxRemoverDebuffs(array &$estado, ?array &$unit, array &$animacoes): void
+    {
+        if (! $unit) {
+            return;
+        }
+        $hpMax              = (int) ($unit['vida_max'] ?? CardCatalog::get($unit['card_id'])?->vida ?? 1);
+        $curaReal           = $hpMax - (int) ($unit['vida_atual'] ?? 0);
+        $unit['vida_atual'] = $hpMax;
+        $unit['silenciado'] = false;
+        $unit['efeitos']    = [];
+        if ($curaReal > 0) {
+            $animacoes[] = ['tipo' => 'cura', 'instancia_id' => $unit['instancia_id'], 'valor' => $curaReal];
+        }
+        $animacoes[] = ['tipo' => 'efeito', 'instancia_id' => $unit['instancia_id'], 'efeito' => 'remover_debuffs'];
+        $this->syncToState($estado, $unit);
+    }
+
+    /**
+     * Silêncio em Massa: aplica Silêncio em todas as unidades inimigas.
+     */
+    private function silencioTodosInimigos(array &$estado, int $slot, array &$animacoes): void
+    {
+        $oponente   = $slot === 1 ? 2 : 1;
+        $instancias = array_column($estado['campo'][$oponente] ?? [], 'instancia_id');
+
+        foreach ($instancias as $instanciaId) {
+            $unidade = $this->engine->findUnit($estado, $oponente, $instanciaId);
+            if ($unidade) {
+                $this->silence($estado, $unidade, $animacoes);
+            }
+        }
+    }
+
+    /**
+     * Inversão de Força: troca os valores de ATK e HP da unidade inimiga alvo.
+     * O ATK efetivo vira o novo HP máximo/atual, e o HP atual vira o novo ATK permanente.
+     */
+    private function inversaoAtaqueHp(array &$estado, ?array &$unit, array &$animacoes): void
+    {
+        if (! $unit) {
+            return;
+        }
+        $carta      = CardCatalog::get($unit['card_id']);
+        $atkBase    = (int) ($carta?->ataque ?? 0);
+        $bonusAtk   = (int) ($unit['bonus_ataque'] ?? 0) + (int) ($unit['bonus_ataque_turno'] ?? 0);
+        $atkEfetivo = $atkBase + $bonusAtk;
+        $hpAtual    = (int) ($unit['vida_atual'] ?? 1);
+
+        // Novo ATK = HP atual; novo HP = ATK efetivo
+        $unit['bonus_ataque']       = $hpAtual - $atkBase;
+        $unit['bonus_ataque_turno'] = 0;
+        $unit['vida_max']           = max(1, $atkEfetivo);
+        $unit['vida_atual']         = max(1, $atkEfetivo);
+
+        $animacoes[] = ['tipo' => 'efeito', 'instancia_id' => $unit['instancia_id'], 'efeito' => 'inversao_ataque_hp'];
+        $this->syncToState($estado, $unit);
+    }
+
+    /**
+     * Sacrifício Tático: destrói a unidade aliada alvo e registra buff para a próxima invocação.
+     */
+    private function sacrificioBuff(array &$estado, int $slot, ?array &$alvo, int $ataque, int $hp, array &$animacoes): void
+    {
+        if (! $alvo) {
+            return;
+        }
+        $instanciaId = $alvo['instancia_id'];
+        $this->engine->killUnit($estado, $slot, $instanciaId, $animacoes);
+        $estado['jogadores'][(string) $slot]['proximo_invocado_buff'] = [
+            'ataque' => $ataque,
+            'hp'     => $hp,
+        ];
+    }
+
+    /**
+     * Tempestade Arcana: causa N dano a todas as unidades inimigas e aplica
+     * Paralisia nas que sobreviverem.
+     */
+    private function tempestadeArcana(array &$estado, int $slot, int $dano, int $duracaoParalisia, array &$animacoes): void
+    {
+        $oponente   = $slot === 1 ? 2 : 1;
+        $instancias = array_column($estado['campo'][$oponente] ?? [], 'instancia_id');
+
+        // Aplica dano iterando por referência direta no campo (como damageAllEnemyUnits)
+        foreach ($instancias as $instanciaId) {
+            foreach ($estado['campo'][$oponente] as &$unidadeCampo) {
+                if ($unidadeCampo['instancia_id'] === $instanciaId) {
+                    $this->engine->damageUnit($estado, $oponente, $unidadeCampo, $dano, $animacoes);
+                    break;
+                }
+            }
+            unset($unidadeCampo);
+        }
+
+        // Paralisia nas sobreviventes
+        $sobreviventes = array_column($estado['campo'][$oponente] ?? [], 'instancia_id');
+        foreach ($sobreviventes as $instanciaId) {
+            $unidade = $this->engine->findUnit($estado, $oponente, $instanciaId);
+            if ($unidade && ! $this->hasPassive($unidade['card_id'], 'imune_controle')) {
+                $this->addEffect($estado, $unidade, 'paralisia', ['duracao' => $duracaoParalisia], $animacoes);
+            }
+        }
+    }
+
+    /**
+     * Pacto de Sangue: o jogador perde N HP; todos os aliados ganham +N/+N permanentes e Véu Arcano.
+     */
+    private function pactoDeSangue(array &$estado, int $slot, int $danoPropio, int $ataque, int $hp, array &$animacoes): void
+    {
+        // Dano ao jogador
+        $jogador          = &$estado['jogadores'][(string) $slot];
+        $jogador['vida']  = max(0, ($jogador['vida'] ?? 0) - $danoPropio);
+        $animacoes[]      = ['tipo' => 'dano_jogador', 'player' => $slot, 'valor' => $danoPropio];
+
+        // Buff em todos os aliados em campo
+        $instancias = array_column($estado['campo'][$slot] ?? [], 'instancia_id');
+        foreach ($instancias as $instanciaId) {
+            $unidade = $this->engine->findUnit($estado, $slot, $instanciaId);
+            if (! $unidade) {
+                continue;
+            }
+            $this->buffAtaqueHpPermanente($estado, $unidade, $ataque, $hp, $animacoes);
+            $unidadeAtualizada = $this->engine->findUnit($estado, $slot, $instanciaId);
+            if ($unidadeAtualizada) {
+                $this->addFlag($estado, $unidadeAtualizada, 'escudo', $animacoes);
+            }
+        }
+    }
+
+    /**
+     * Ruptura Dimensional: destrói a unidade inimiga com maior HP que não possua
+     * Véu Arcano nem Provocar.
+     */
+    private function destruirMaiorHpInimigo(array &$estado, int $slot, array &$animacoes): void
+    {
+        $oponente  = $slot === 1 ? 2 : 1;
+        $candidata = null;
+        $maiorHp   = -1;
+
+        foreach ($estado['campo'][$oponente] as $unidade) {
+            $temVeu      = $unidade['flags']['escudo'] ?? false;
+            $temProvocar = ($unidade['flags']['taunt_self'] ?? false) && ! ($unidade['silenciado'] ?? false);
+            if ($temVeu || $temProvocar) {
+                continue;
+            }
+            $hpAtual = (int) ($unidade['vida_atual'] ?? 0);
+            if ($hpAtual > $maiorHp) {
+                $maiorHp   = $hpAtual;
+                $candidata = $unidade;
+            }
+        }
+
+        if ($candidata) {
+            $this->engine->killUnit($estado, $oponente, $candidata['instancia_id'], $animacoes);
+        }
+    }
+
+    /**
+     * Colapso do Vazio: destrói todas as unidades em campo (aliadas e inimigas).
+     * Recupera N HP por cada unidade aliada destruída.
+     */
+    private function colapsoDovazio(array &$estado, int $slot, int $curaPorAliada, array &$animacoes): void
+    {
+        // Conta aliados antes de destruir
+        $totalAliados = count($estado['campo'][$slot]);
+
+        // Destrói todos (aliados e inimigos)
+        foreach ([1, 2] as $ladoCampo) {
+            $instancias = array_column($estado['campo'][$ladoCampo], 'instancia_id');
+            foreach ($instancias as $instanciaId) {
+                $this->engine->killUnit($estado, $ladoCampo, $instanciaId, $animacoes);
+            }
+        }
+
+        // Recupera HP por aliado destruído
+        if ($totalAliados > 0 && $curaPorAliada > 0) {
+            $totalCura = $totalAliados * $curaPorAliada;
+            $this->healPlayer($estado, $slot, $totalCura, $animacoes);
+        }
     }
 }
