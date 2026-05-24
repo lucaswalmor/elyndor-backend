@@ -123,13 +123,40 @@ return [
             'handler' => NullHandler::class,
         ],
 
+        /*
+         * Economia / eventos gerais (não confundir com telemetria de partida).
+         */
         'game_balance' => [
             'driver' => 'single',
             'path' => storage_path('logs/game-balance.log'),
             'level' => env('LOG_GAME_BALANCE_LEVEL', 'info'),
             'replace_placeholders' => true,
         ],
-        
+
+        /*
+         * LOG 1 — Casual (normal) e ranqueada entre dois jogadores humanos.
+         * Estado completo por ação para balanceamento de cartas e matchups PvP.
+         */
+        'game_balance_pvp' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/game-balance-pvp.log'),
+            'level' => env('LOG_GAME_BALANCE_PVP_LEVEL', 'debug'),
+            'days' => (int) env('LOG_GAME_BALANCE_PVP_DAYS', 30),
+            'replace_placeholders' => true,
+        ],
+
+        /*
+         * LOG 2 — Casual/ranqueada com substituto (bot): humano vs IA.
+         * Inclui perfil de dificuldade, vitória do bot/humano e estado completo.
+         */
+        'game_balance_vs_bot' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/game-balance-vs-bot.log'),
+            'level' => env('LOG_GAME_BALANCE_VS_BOT_LEVEL', 'debug'),
+            'days' => (int) env('LOG_GAME_BALANCE_VS_BOT_DAYS', 30),
+            'replace_placeholders' => true,
+        ],
+
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
         ],

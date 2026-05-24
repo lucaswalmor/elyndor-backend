@@ -6,8 +6,8 @@ use App\Models\GameMatch;
 use App\Models\MatchPlayer;
 use App\Models\RankedMatchOutcome;
 use App\Models\User;
+use App\Services\Logging\GameBalanceMatchTelemetry;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class RankedOutcomeService
 {
@@ -122,8 +122,7 @@ class RankedOutcomeService
         $indiceOponente = $oppDiv !== null ? $this->ranked->tierIndex($oppDiv) : null;
         $gapOponenteMenosJogador = $indiceOponente !== null ? $indiceOponente - $indiceJogador : null;
 
-        Log::channel('game_balance')->info('ranked.match_player_outcome', [
-            'match_id' => $match->id,
+        GameBalanceMatchTelemetry::rankedPlayerOutcome($match, [
             'user_id' => $userId,
             'won' => $won,
             'delta' => $delta,
@@ -139,6 +138,11 @@ class RankedOutcomeService
             'tier_to_key' => $bracketMovement['to_key'],
             'tier_from_label' => $bracketMovement['from_label'],
             'tier_to_label' => $bracketMovement['to_label'],
+            'oponente_eh_bot' => MatchPlayer::query()
+                ->where('match_id', $match->id)
+                ->where('is_bot', true)
+                ->where('user_id', '!=', $userId)
+                ->exists(),
         ]);
     }
 }

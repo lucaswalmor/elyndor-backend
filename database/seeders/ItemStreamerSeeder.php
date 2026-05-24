@@ -190,6 +190,21 @@ class ItemStreamerSeeder extends Seeder
         'pulso-restaurador',
         'impeto-momentaneo',
         'silencio-repentino',
+        'nevoa-da-confusao',
+        'escudo-de-emergencia',
+        'veu-arcano',
+        'punicao-arcana',
+        'ritual-de-sacrificio',
+        'canalizacao-de-poder',
+        'explosao-arcana',
+        'onda-de-choque',
+        'restauracao-completa',
+        'silencio-em-massa',
+        'inversao-de-forca',
+        'acensao',
+        'pacto-de-sangue',
+        'ruptura-dimensional',
+        'colapso-do-vazio',
     ];
 
     public function run(): void
