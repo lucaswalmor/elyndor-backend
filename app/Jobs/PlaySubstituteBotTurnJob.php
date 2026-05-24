@@ -53,6 +53,8 @@ final class PlaySubstituteBotTurnJob
                 return;
             }
 
+            GameBalanceMatchTelemetry::botAcaoPlanejada($match, $slot, $payload);
+
             try {
                 $engine->processAction($match, $botUser, $payload);
             } catch (\Throwable $exception) {

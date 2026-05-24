@@ -172,6 +172,28 @@ final class GameBalanceMatchTelemetry
     }
 
     /**
+     * Decisão heurística do substituto antes de enviar ao motor (apenas canal vs_bot).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public static function botAcaoPlanejada(GameMatch $match, int $botSlot, array $payload): void
+    {
+        if (self::resolverCanal($match) !== self::CANAL_VS_BOT) {
+            return;
+        }
+
+        $estado = $match->estado ?? [];
+
+        self::registrar($match, 'info', 'bot.acao_planejada', [
+            'bot_slot' => $botSlot,
+            'payload_planejado' => $payload,
+            'contexto_bot' => self::contextoBot($match, $botSlot),
+            'estado_completo' => $estado !== [] ? $estado : null,
+            'resumo_estado' => $estado !== [] ? self::resumoEstado($estado) : null,
+        ]);
+    }
+
+    /**
      * @param  array<string, mixed>  $contexto
      */
     private static function registrar(GameMatch $match, string $nivel, string $evento, array $contexto): void
