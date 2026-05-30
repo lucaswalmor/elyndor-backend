@@ -19,6 +19,7 @@ use App\Services\Ranked\RankedService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
+use Illuminate\Support\Collection;
 
 class MatchmakingService
 {
@@ -331,30 +332,66 @@ class MatchmakingService
             return null;
         }
 
-        foreach ($queues as $i => $a) {
-            $waitA = max(0, (int) floor($a->entrou_na_fila_em->diffInSeconds(now(), true)));
-            foreach ($queues as $j => $b) {
-                if ($i >= $j) {
+        $relaxarBaixaPopulacao = $this->deveRelaxarPareamentoRanqueado($queues);
+
+        foreach ($queues as $indiceA => $jogadorA) {
+            $esperaA = max(0, (int) floor($jogadorA->entrou_na_fila_em->diffInSeconds(now(), true)));
+            foreach ($queues as $indiceB => $jogadorB) {
+                if ($indiceA >= $indiceB) {
                     continue;
                 }
-                if (! $this->antiAbuse->allowsRankedPair($a, $b)) {
+                if (! $this->antiAbuse->allowsRankedPair($jogadorA, $jogadorB)) {
                     continue;
                 }
-                $maxWait = max(
-                    $waitA,
-                    max(0, (int) floor($b->entrou_na_fila_em->diffInSeconds(now(), true))),
+                $esperaMaxima = max(
+                    $esperaA,
+                    max(0, (int) floor($jogadorB->entrou_na_fila_em->diffInSeconds(now(), true))),
                 );
-                $divA = (string) $a->divisao;
-                $divB = (string) $b->divisao;
-                if (! $this->ranked->pairingAllowed($divA, $divB, $maxWait)) {
+                $divisaoA = (string) $jogadorA->divisao;
+                $divisaoB = (string) $jogadorB->divisao;
+                if (! $this->ranked->pairingAllowed($divisaoA, $divisaoB, $esperaMaxima, $relaxarBaixaPopulacao)) {
                     continue;
                 }
 
-                return $this->createMatchFromQueue($a, $b, 'ranqueada');
+                return $this->createMatchFromQueue($jogadorA, $jogadorB, 'ranqueada', $relaxarBaixaPopulacao);
             }
         }
 
         return null;
+    }
+
+    /**
+     * Só 2 humanos na fila ranqueada ou poucos online: parear mesmo com elo distante ou mesmo IP (testes/beta).
+     *
+     * @param  Collection<int, MatchmakingQueue>|EloquentCollection<int, MatchmakingQueue>  $filaRanqueada
+     */
+    private function deveRelaxarPareamentoRanqueado(Collection|EloquentCollection $filaRanqueada): bool
+    {
+        if ($filaRanqueada->count() === 2) {
+            return true;
+        }
+
+        $maxHumanosOnline = (int) config('game.ranked.low_population.max_humans_online', 3);
+        if ($maxHumanosOnline > 0 && $this->contarHumanosOnline() <= $maxHumanosOnline) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function contarHumanosOnline(): int
+    {
+        $janelaSegundos = max(60, (int) config('game.stats.online_presence_seconds', 120));
+        $desde = now()->subSeconds($janelaSegundos);
+
+        return (int) DB::table('user_sessions')
+            ->join('users', 'users.id', '=', 'user_sessions.user_id')
+            ->where('user_sessions.last_seen_at', '>=', $desde)
+            ->where(function ($consulta) {
+                $consulta->where('users.is_bot', false)->orWhereNull('users.is_bot');
+            })
+            ->selectRaw('COUNT(DISTINCT user_sessions.user_id) as total')
+            ->value('total');
     }
 
     /** @deprecated use tryPairNormal em código novo */
@@ -363,9 +400,13 @@ class MatchmakingService
         return $modo === 'ranqueada' ? $this->tryPairRanked() : $this->tryPairNormal();
     }
 
-    private function createMatchFromQueue(MatchmakingQueue $a, MatchmakingQueue $b, string $modo): ?int
-    {
-        return DB::transaction(function () use ($a, $b, $modo) {
+    private function createMatchFromQueue(
+        MatchmakingQueue $a,
+        MatchmakingQueue $b,
+        string $modo,
+        bool $relaxarBaixaPopulacao = false,
+    ): ?int {
+        return DB::transaction(function () use ($a, $b, $modo, $relaxarBaixaPopulacao) {
             $freshA = MatchmakingQueue::where('user_id', $a->user_id)->lockForUpdate()->first();
             $freshB = MatchmakingQueue::where('user_id', $b->user_id)->lockForUpdate()->first();
             if (! $freshA || ! $freshB || $freshA->modo !== $modo || $freshB->modo !== $modo) {
@@ -377,7 +418,15 @@ class MatchmakingService
                     max(0, (int) floor($freshA->entrou_na_fila_em->diffInSeconds(now(), true))),
                     max(0, (int) floor($freshB->entrou_na_fila_em->diffInSeconds(now(), true)))
                 );
-                if (! $this->ranked->pairingAllowed((string) $freshA->divisao, (string) $freshB->divisao, $maxWait)) {
+                $relaxar = $relaxarBaixaPopulacao || $this->deveRelaxarPareamentoRanqueado(
+                    MatchmakingQueue::where('modo', 'ranqueada')->lockForUpdate()->get()
+                );
+                if (! $this->ranked->pairingAllowed(
+                    (string) $freshA->divisao,
+                    (string) $freshB->divisao,
+                    $maxWait,
+                    $relaxar,
+                )) {
                     return null;
                 }
                 if (! $this->antiAbuse->allowsRankedPair($freshA, $freshB)) {

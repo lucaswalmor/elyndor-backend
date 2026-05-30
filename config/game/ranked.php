@@ -11,6 +11,16 @@ return [
         'same_division_seconds' => 15,
         /** Após isso permite divisão adjacente (+1 / -1) */
         'adjacent_division_seconds' => 30,
+        /** Após isso permite qualquer diferença de divisão (ex.: Prata vs Ouro) */
+        'wide_pairing_seconds' => 60,
+    ],
+
+    /*
+     * Poucos humanos online ou só 2 na fila ranqueada: parear mesmo com IP/dispositivo
+     * iguais e diferença de elo maior (beta / baixa população).
+     */
+    'low_population' => [
+        'max_humans_online' => (int) env('RANKED_LOW_POP_MAX_ONLINE', 3),
     ],
 
     /*

@@ -128,23 +128,39 @@ class RankedService
     }
 
     /**
-     * Fila ranqueada: mesmo tier sempre; tier adjacente só após N segundos na fila (maior espera dos dois).
+     * Fila ranqueada: mesmo tier sempre; tier adjacente após adjacent_division_seconds;
+     * qualquer gap após wide_pairing_seconds ou quando $relaxarBaixaPopulacao (só 2 na fila / poucos online).
      */
-    public function pairingAllowed(string $divKeyA, string $divKeyB, int $maxWaitSeconds): bool
-    {
-        $a = $this->tierIndex($divKeyA);
-        $b = $this->tierIndex($divKeyB);
-        $diff = abs($a - $b);
-        if ($diff === 0) {
+    public function pairingAllowed(
+        string $divKeyA,
+        string $divKeyB,
+        int $maxWaitSeconds,
+        bool $relaxarBaixaPopulacao = false,
+    ): bool {
+        if ($relaxarBaixaPopulacao) {
             return true;
         }
-        if ($diff === 1) {
-            $need = (int) config('game.ranked.pairing.same_division_seconds', 15);
 
-            return $maxWaitSeconds >= $need;
+        $indiceA = $this->tierIndex($divKeyA);
+        $indiceB = $this->tierIndex($divKeyB);
+        $diferencaDivisoes = abs($indiceA - $indiceB);
+
+        if ($diferencaDivisoes === 0) {
+            return true;
         }
 
-        return false;
+        $segundosAdjacente = (int) config('game.ranked.pairing.adjacent_division_seconds', 30);
+        if ($diferencaDivisoes === 1) {
+            return $maxWaitSeconds >= $segundosAdjacente;
+        }
+
+        if ($diferencaDivisoes === 2) {
+            return $maxWaitSeconds >= $segundosAdjacente;
+        }
+
+        $segundosAmplo = (int) config('game.ranked.pairing.wide_pairing_seconds', 60);
+
+        return $maxWaitSeconds >= $segundosAmplo;
     }
 
     /** Aplicar piso Ferro (pontos não negativos). */
