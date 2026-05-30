@@ -178,7 +178,7 @@ class MatchEngine
         }
     }
 
-    public function damageUnit(array &$estado, int $slot, array &$unit, int $dmg, array &$animacoes): void
+    public function damageUnit(array &$estado, int $slot, array &$unit, int $dmg, array &$animacoes, ?array $origemDano = null): void
     {
         $id = $unit['instancia_id'];
 
@@ -200,7 +200,14 @@ class MatchEngine
             $unit['reducao_acumulada'] = $acumulada;
             $reducao += $acumulada;
         }
-        $dmg = max(1, $dmg - $reducao); // mínimo 1 de dano
+        $dmg = $dmg > 0 ? max(1, $dmg - $reducao) : 0; // mínimo 1 quando há dano real; 0 preserva ATK anulado (Eclipse Vivo)
+
+        if ($dmg > 0) {
+            $this->effects->aplicarPerdeAtaqueAoReceberDano($estado, $slot, $unit, $dmg, $animacoes);
+            if ($origemDano !== null) {
+                $this->effects->aplicarReflexoDano($estado, $slot, $unit, $origemDano, $animacoes);
+            }
+        }
 
         $unit['vida_atual'] -= $dmg;
         $animacoes[] = ['tipo' => 'dano', 'instancia_id' => $id, 'valor' => $dmg];
@@ -318,7 +325,10 @@ class MatchEngine
 
             // Rastrear dano real para lifesteal (Costureira Macabra)
             $vidaAntes = $defender['vida_atual'];
-            $this->damageUnit($estado, $oppSlot, $defender, $atk, $animacoes);
+            $this->damageUnit($estado, $oppSlot, $defender, $atk, $animacoes, [
+                'slot' => $slot,
+                'instancia_id' => $attacker['instancia_id'],
+            ]);
             $defRef   = $this->findUnit($estado, $oppSlot, $defender['instancia_id']);
             $danoReal = $defRef !== null
                 ? max(0, $vidaAntes - $defRef['vida_atual'])
@@ -350,9 +360,28 @@ class MatchEngine
                 'alvo' => $defender,
                 'dano' => $danoReal,
             ]);
+
+            // Gatilho ao_matar: disparado no atacante quando destrói o defensor
+            $defensorMorreu = $defRef === null;
+            if ($defensorMorreu) {
+                $atacanteAtualizado = $this->findUnit($estado, $slot, $attacker['instancia_id']);
+                if ($atacanteAtualizado) {
+                    $this->effects->triggerSkills($estado, $slot, 'ao_matar', $atacanteAtualizado, $animacoes, []);
+                }
+            }
         }
 
-        $attacker['pode_atacar'] = false;
+        // Recarrega do estado antes de sincronizar — efeitos ao_atacar/ao_matar
+        // (ex.: ganho_ataque_ao_matar) já persistiram via syncToState e não podem
+        // ser sobrescritos pela cópia local desatualizada do atacante.
+        $atacantePersistido = $this->findUnit($estado, $slot, $attacker['instancia_id']);
+        if ($atacantePersistido) {
+            $atacantePersistido['pode_atacar'] = false;
+            $this->syncUnit($estado, $slot, $atacantePersistido);
+            $attacker = $atacantePersistido;
+        } else {
+            $attacker['pode_atacar'] = false;
+        }
     }
 
     /**
@@ -617,7 +646,6 @@ class MatchEngine
 
         $this->registrarAtaqueRealizadoNoTurno($estado, $slot);
         $this->unitAttack($estado, $slot, $attacker, $opp, $defender, $animacoes);
-        $this->syncUnit($estado, $slot, $attacker);
     }
 
     private function attackPlayer(array &$estado, int $slot, array $payload, array &$animacoes): void
@@ -669,9 +697,13 @@ class MatchEngine
 
             $ctx = ['alvo_instancia_id' => $payload['alvo_instancia_id'] ?? null];
             $opp = $slot === 1 ? 2 : 1;
-            $alvo = $ctx['alvo_instancia_id']
-                ? $this->findUnit($estado, $opp, $ctx['alvo_instancia_id'])
-                : null;
+            // Alvos aliados são buscados no próprio slot; inimigos, no oposto
+            $alvoInstanciaId = $ctx['alvo_instancia_id'];
+            $alvo            = null;
+            if ($alvoInstanciaId) {
+                $alvoSlot = ($skill->efeito['alvo'] ?? '') === 'unidade_aliada' ? $slot : $opp;
+                $alvo     = $this->findUnit($estado, $alvoSlot, $alvoInstanciaId);
+            }
             $ctx['alvo'] = $alvo;
             $this->effects->apply($estado, $slot, $unit, $skill->efeito, $animacoes, $ctx);
         }

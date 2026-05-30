@@ -114,7 +114,17 @@ class EffectResolver
                 break;
             case 'dano_alvo':
                 if ($alvo !== null) {
-                    $this->engine->damageUnit($estado, $slot === 1 ? 2 : 1, $alvo, (int) ($efeito['valor'] ?? 0), $animacoes);
+                    $origemDano = ($unit && ! empty($unit['instancia_id']))
+                        ? ['slot' => $slot, 'instancia_id' => $unit['instancia_id']]
+                        : null;
+                    $this->engine->damageUnit(
+                        $estado,
+                        $slot === 1 ? 2 : 1,
+                        $alvo,
+                        (int) ($efeito['valor'] ?? 0),
+                        $animacoes,
+                        $origemDano,
+                    );
                 }
                 break;
             case 'debuff_ataque':
@@ -140,6 +150,9 @@ class EffectResolver
                 break;
             case 'silencio':
                 $this->silence($estado, $alvo, $animacoes);
+                break;
+            case 'silencio_paralisia':
+                $this->aplicarSilencioEParalisia($estado, $alvo, $efeito, $animacoes);
                 break;
             case 'paralisia':
                 $this->addEffect($estado, $alvo, 'paralisia', $efeito, $animacoes);
@@ -268,6 +281,77 @@ class EffectResolver
                 // Colapso do Vazio: destrói todas as unidades em campo, recupera HP por aliada destruída
                 $this->colapsoDovazio($estado, $slot, (int) ($efeito['cura_por_aliada'] ?? 3), $animacoes);
                 break;
+
+            // ── Habilidades de gatilho ao_matar ──────────────────────────────────────
+
+            case 'ganho_ataque_ao_matar':
+                // Berserker das Brasas: ao matar, ganha +N ATK permanente
+                $this->buffAtaquePermanente($estado, $unit, (int) ($efeito['valor'] ?? 1), $animacoes);
+                break;
+
+            case 'cura_si_e_bonus_ataque_turno':
+                // Ceifador das Almas: ao matar, cura HP próprio e ganha +N ATK no turno
+                $this->curaSiEBonusAtaqueTurno($estado, $slot, $unit, (int) ($efeito['cura'] ?? 2), (int) ($efeito['bonus_ataque'] ?? 1), $animacoes);
+                break;
+
+            case 'ataque_extra_ao_matar':
+                // Drakhar Sombrio, Mantis Caçador, Predador Estelar: segundo ataque após matar
+                $this->liberarAtaqueExtraAoMatar($estado, $unit, $animacoes);
+                break;
+
+            // ── Habilidades de gatilho ao_morrer ─────────────────────────────────────
+
+            case 'dano_jogador_inimigo':
+                // Cinzeiro Rastejante: ao morrer, causa N dano direto ao jogador inimigo
+                $opp = $slot === 1 ? 2 : 1;
+                $this->danoJogadorDireto($estado, $opp, (int) ($efeito['valor'] ?? 1), $animacoes);
+                break;
+
+            case 'reviver_ate_tres_do_cemiterio_linhagem':
+                // O Profanado: ao morrer, invoca até N da linhagem do cemitério com N HP
+                $this->reviverDoCemiterioLinhagem($estado, $slot, $efeito, $animacoes);
+                break;
+
+            // ── Habilidades de batalha_cry / ao_invocar ───────────────────────────────
+
+            case 'buff_linhagem_ataque_turno':
+                // Comandante Vulcânico: ao invocar, aliados da linhagem ganham +N ATK no turno
+                $invocadorId = $context['invocador_instancia_id'] ?? ($unit['instancia_id'] ?? null);
+                $this->buffLinhagemAtaqueTurno($estado, $slot, $efeito, $invocadorId, $animacoes);
+                break;
+
+            // ── Habilidades de inicio_turno_aliado ────────────────────────────────────
+
+            case 'bonus_ataque_turno_aleatorio':
+                // Fragmento do Caos: ATK aleatório entre min e max até fim do turno
+                $this->bonusAtaqueTurnoAleatorio($estado, $unit, (int) ($efeito['min'] ?? -2), (int) ($efeito['max'] ?? 4), $animacoes);
+                break;
+
+            // ── Habilidades ativas ────────────────────────────────────────────────────
+
+            case 'sacrificio_buff_aliado_turno':
+                // Cultista do Nexus: sacrifica HP próprio para dar +N ATK a aliado no turno
+                $this->sacrificioBuffAliado($estado, $slot, $unit, $alvo, (int) ($efeito['custo_vida'] ?? 2), (int) ($efeito['valor'] ?? 2), $animacoes);
+                break;
+
+            // ── Habilidades de ao_atacar ──────────────────────────────────────────────
+
+            case 'dano_adjacente':
+                // Lança-Chamas Infernal, Anjo Fragmentado: 1 dano à unidade inimiga ao lado do alvo
+                if ($alvo !== null) {
+                    $origemDano = ($unit && ! empty($unit['instancia_id']))
+                        ? ['slot' => $slot, 'instancia_id' => $unit['instancia_id']]
+                        : null;
+                    $this->danoAdjacenteInimigo(
+                        $estado,
+                        $slot === 1 ? 2 : 1,
+                        $alvo,
+                        (int) ($efeito['valor'] ?? 1),
+                        $animacoes,
+                        $origemDano,
+                    );
+                }
+                break;
         }
     }
 
@@ -299,17 +383,111 @@ class EffectResolver
 
     public function hasPassive(int $cardId, string $tipo): bool
     {
-        $card = CardCatalog::get($cardId);
-        if (! $card) {
+        return $this->getPassiveValor($cardId, $tipo) !== null;
+    }
+
+    public function possuiImunidadeRemocaoDireta(int $cardId): bool
+    {
+        $carta = CardCatalog::get($cardId);
+        if (! $carta) {
             return false;
         }
-        foreach ($card->skills as $skill) {
-            if (($skill->efeito['tipo'] ?? '') === $tipo) {
+        foreach ($carta->skills as $skill) {
+            if (($skill->efeito['tipo'] ?? '') === 'imune_remocao_direta') {
                 return true;
             }
         }
 
         return false;
+    }
+
+    public function getPassiveValor(int $cardId, string $tipo): ?int
+    {
+        $card = CardCatalog::get($cardId);
+        if (! $card) {
+            return null;
+        }
+        foreach ($card->skills as $skill) {
+            if (($skill->efeito['tipo'] ?? '') === $tipo) {
+                return (int) ($skill->efeito['valor'] ?? 0);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Decomposição (Zumbi Colossus): perde ATK permanente ao receber dano (mínimo 0).
+     */
+    public function aplicarPerdeAtaqueAoReceberDano(
+        array &$estado,
+        int $slot,
+        array &$unit,
+        int $danoRecebido,
+        array &$animacoes,
+    ): void {
+        if ($danoRecebido <= 0 || ($unit['silenciado'] ?? false)) {
+            return;
+        }
+
+        $valorPerda = $this->getPassiveValor($unit['card_id'], 'perde_ataque_ao_receber_dano');
+        if ($valorPerda === null || $valorPerda <= 0 || ! $this->engine) {
+            return;
+        }
+
+        $ataqueAtual = $this->engine->getUnitAttack($estado, $slot, $unit);
+        if ($ataqueAtual <= 0) {
+            return;
+        }
+
+        $perdaReal = min($valorPerda, $ataqueAtual);
+        $unit['bonus_ataque'] = ($unit['bonus_ataque'] ?? 0) - $perdaReal;
+        $animacoes[] = [
+            'tipo' => 'debuff_ataque',
+            'instancia_id' => $unit['instancia_id'],
+            'valor' => $perdaReal,
+        ];
+    }
+
+    /**
+     * Pele Incandescente / Espinhos: ao receber dano de uma unidade, causa N de volta ao atacante.
+     */
+    public function aplicarReflexoDano(
+        array &$estado,
+        int $slotDefensor,
+        array $unit,
+        array $origemDano,
+        array &$animacoes,
+    ): void {
+        if ($unit['silenciado'] ?? false) {
+            return;
+        }
+
+        $valorReflexo = $this->getPassiveValor($unit['card_id'], 'reflexo_dano');
+        if ($valorReflexo === null || $valorReflexo <= 0 || ! $this->engine) {
+            return;
+        }
+
+        $slotAtacante = (int) ($origemDano['slot'] ?? 0);
+        $instanciaAtacante = (string) ($origemDano['instancia_id'] ?? '');
+        if ($slotAtacante < 1 || $slotAtacante > 2 || $instanciaAtacante === '') {
+            return;
+        }
+
+        $atacante = $this->engine->findUnit($estado, $slotAtacante, $instanciaAtacante);
+        if (! $atacante) {
+            return;
+        }
+
+        $animacoes[] = [
+            'tipo' => 'reflexo_dano',
+            'instancia_id' => $unit['instancia_id'],
+            'alvo_instancia_id' => $instanciaAtacante,
+            'valor' => $valorReflexo,
+        ];
+
+        // Sem origemDano no reflexo — evita loop infinito de espelhamento.
+        $this->engine->damageUnit($estado, $slotAtacante, $atacante, $valorReflexo, $animacoes);
     }
 
     public function auraAttackBonus(array $estado, int $slot, ?string $targetLinhagem = null): int
@@ -416,6 +594,9 @@ class EffectResolver
         if (in_array($tipo, $tiposControle) && $this->hasPassive($unit['card_id'], 'imune_controle')) {
             return;
         }
+        if ($tipo === 'silencio' && $this->possuiImunidadeRemocaoDireta($unit['card_id'])) {
+            return;
+        }
         $unit['efeitos'][] = [
             'tipo'    => $tipo,
             'valor'   => $efeito['valor'] ?? 1,
@@ -440,10 +621,44 @@ class EffectResolver
         if ($this->hasPassive($unit['card_id'], 'imune_controle')) {
             return;
         }
+        // Titã Magmático: imune a Silêncio e remoção direta
+        if ($this->possuiImunidadeRemocaoDireta($unit['card_id'])) {
+            return;
+        }
         $unit['silenciado'] = true;
         $unit['efeitos'][] = ['tipo' => 'silencio', 'duracao' => 1];
         $animacoes[] = ['tipo' => 'silencio', 'instancia_id' => $unit['instancia_id']];
         $this->syncToState($estado, $unit);
+    }
+
+    /**
+     * Sombra Vinculada: aplica Silêncio e Paralisia no mesmo alvo (habilidade ativa).
+     */
+    private function aplicarSilencioEParalisia(array &$estado, ?array &$unit, array $efeito, array &$animacoes): void
+    {
+        if (! $unit) {
+            return;
+        }
+
+        $duracao = (int) ($efeito['duracao'] ?? 1);
+        $instanciaAlvo = $unit['instancia_id'];
+        $imuneSilencio = $this->possuiImunidadeRemocaoDireta($unit['card_id']);
+
+        if (! $imuneSilencio) {
+            $this->addEffect($estado, $unit, 'silencio', ['duracao' => $duracao], $animacoes);
+        }
+
+        foreach ([1, 2] as $slotCampo) {
+            foreach ($estado['campo'][$slotCampo] as &$unidadeCampo) {
+                if ($unidadeCampo['instancia_id'] !== $instanciaAlvo) {
+                    continue;
+                }
+                $this->addEffect($estado, $unidadeCampo, 'paralisia', ['duracao' => $duracao], $animacoes);
+
+                return;
+            }
+        }
+        unset($unidadeCampo);
     }
 
     private function healRandomAlly(array &$estado, int $slot, int $amount, array &$animacoes): void
@@ -600,7 +815,7 @@ class EffectResolver
         }
         $idx = array_rand($estado['campo'][$opp]);
         $unit = $estado['campo'][$opp][$idx];
-        if ($this->hasPassive($unit['card_id'], 'imune_remocao_direta')) {
+        if ($this->possuiImunidadeRemocaoDireta($unit['card_id'])) {
             return;
         }
         // FIX: Aberração do Vazio: dispara_ao_morrer=false suprime gatilhos de morte
@@ -879,7 +1094,7 @@ class EffectResolver
         foreach ($estado['campo'][$oponente] as $unidade) {
             $temVeu      = $unidade['flags']['escudo'] ?? false;
             $temProvocar = ($unidade['flags']['taunt_self'] ?? false) && ! ($unidade['silenciado'] ?? false);
-            if ($temVeu || $temProvocar) {
+            if ($temVeu || $temProvocar || $this->possuiImunidadeRemocaoDireta($unidade['card_id'])) {
                 continue;
             }
             $hpAtual = (int) ($unidade['vida_atual'] ?? 0);
@@ -916,5 +1131,254 @@ class EffectResolver
             $totalCura = $totalAliados * $curaPorAliada;
             $this->healPlayer($estado, $slot, $totalCura, $animacoes);
         }
+    }
+
+    // ── Habilidades de gatilho ao_matar ──────────────────────────────────────────
+
+    /**
+     * Berserker das Brasas: ao matar uma unidade, ganha +N ATK permanente.
+     */
+    private function buffAtaquePermanente(array &$estado, ?array &$unit, int $valor, array &$animacoes): void
+    {
+        if (! $unit || $valor === 0) {
+            return;
+        }
+        $unit['bonus_ataque'] = ($unit['bonus_ataque'] ?? 0) + $valor;
+        $animacoes[] = ['tipo' => 'buff_ataque', 'instancia_id' => $unit['instancia_id'], 'valor' => $valor];
+        $this->syncToState($estado, $unit);
+    }
+
+    /**
+     * Ceifador das Almas: ao matar, cura HP próprio e ganha +N ATK no turno atual.
+     */
+    private function curaSiEBonusAtaqueTurno(array &$estado, int $slot, ?array &$unit, int $cura, int $bonusAtaque, array &$animacoes): void
+    {
+        if (! $unit) {
+            return;
+        }
+        if ($cura > 0) {
+            $maxHp   = (int) ($unit['vida_max'] ?? CardCatalog::get($unit['card_id'])?->vida ?? 1);
+            $novaVida = min($maxHp, $unit['vida_atual'] + $cura);
+            $curaReal = $novaVida - $unit['vida_atual'];
+            if ($curaReal > 0) {
+                $unit['vida_atual'] = $novaVida;
+                $animacoes[] = ['tipo' => 'cura', 'instancia_id' => $unit['instancia_id'], 'valor' => $curaReal];
+            }
+        }
+        if ($bonusAtaque > 0) {
+            $unit['bonus_ataque_turno'] = ($unit['bonus_ataque_turno'] ?? 0) + $bonusAtaque;
+            $animacoes[] = ['tipo' => 'buff_ataque', 'instancia_id' => $unit['instancia_id'], 'valor' => $bonusAtaque];
+        }
+        $this->syncToState($estado, $unit);
+    }
+
+    /**
+     * Drakhar Sombrio / Mantis Caçador / Predador Estelar:
+     * após matar uma unidade, libera um segundo ataque neste turno (limitado a 1 por turno).
+     */
+    private function liberarAtaqueExtraAoMatar(array &$estado, ?array &$unit, array &$animacoes): void
+    {
+        if (! $unit) {
+            return;
+        }
+        if ($unit['flags']['ataque_extra_ao_matar_usado_turno'] ?? false) {
+            return;
+        }
+        $unit['pode_atacar']                              = true;
+        $unit['flags']['ataque_extra_ao_matar_usado_turno'] = true;
+        $animacoes[] = ['tipo' => 'ataque_extra', 'instancia_id' => $unit['instancia_id']];
+        $this->syncToState($estado, $unit);
+    }
+
+    // ── Habilidades de gatilho ao_morrer ─────────────────────────────────────────
+
+    /**
+     * Cinzeiro Rastejante: ao morrer, causa N dano direto ao jogador inimigo.
+     */
+    private function danoJogadorDireto(array &$estado, int $slotInimigo, int $valor, array &$animacoes): void
+    {
+        $estado['jogadores'][(string) $slotInimigo]['vida'] = max(0, ($estado['jogadores'][(string) $slotInimigo]['vida'] ?? 0) - $valor);
+        $animacoes[] = ['tipo' => 'dano_jogador', 'player' => $slotInimigo, 'valor' => $valor];
+    }
+
+    /**
+     * O Profanado: ao morrer, invoca até N unidades da linhagem do cemitério aliado com vida fixada.
+     * Só invoca quantas houver disponíveis (não exige o máximo).
+     * Unidades invocadas não podem atacar no turno de entrada.
+     */
+    private function reviverDoCemiterioLinhagem(array &$estado, int $slot, array $efeito, array &$animacoes): void
+    {
+        $linhagem   = $efeito['linhagem'] ?? null;
+        $quantidade = (int) ($efeito['quantidade'] ?? 3);
+        $vidaFixa   = (int) ($efeito['vida'] ?? 1);
+        $maxField   = config('game.match.field.max_units_per_player');
+
+        $cemiterio = $estado['jogadores'][(string) $slot]['cemiterio'] ?? [];
+        if (empty($cemiterio)) {
+            return;
+        }
+
+        $candidatos = [];
+        foreach ($cemiterio as $cardId) {
+            $card = CardCatalog::get((int) $cardId);
+            if (! $card || $card->tipo === 'spell') {
+                continue;
+            }
+            if ($linhagem && $card->linhagem !== $linhagem) {
+                continue;
+            }
+            $candidatos[] = (int) $cardId;
+        }
+
+        if (empty($candidatos)) {
+            return;
+        }
+
+        shuffle($candidatos);
+        $invocados = 0;
+
+        foreach ($candidatos as $cardId) {
+            if ($invocados >= $quantidade) {
+                break;
+            }
+            if (count($estado['campo'][$slot]) >= $maxField) {
+                break;
+            }
+            $card = CardCatalog::get($cardId);
+            if (! $card) {
+                continue;
+            }
+
+            $novaUnidade = [
+                'instancia_id'           => (string) Str::uuid(),
+                'card_id'                => $cardId,
+                'vida_atual'             => $vidaFixa,
+                'vida_max'               => $card->vida,
+                'bonus_ataque'           => 0,
+                'bonus_ataque_turno'     => 0,
+                'pode_atacar'            => false,
+                'foi_invocado_neste_turno' => true,
+                'silenciado'             => false,
+                'efeitos'                => [],
+                'flags'                  => [],
+            ];
+            $this->initializeUnitFlags($novaUnidade, $card);
+            $estado['campo'][$slot][] = $novaUnidade;
+            $animacoes[] = ['tipo' => 'invocar', 'instancia_id' => $novaUnidade['instancia_id'], 'card_id' => $cardId];
+            $invocados++;
+        }
+    }
+
+    // ── Habilidades de batalha_cry / ao_invocar ───────────────────────────────────
+
+    /**
+     * Comandante Vulcânico: ao invocar, todos os aliados da linhagem (exceto o próprio)
+     * ganham +N ATK neste turno.
+     */
+    private function buffLinhagemAtaqueTurno(array &$estado, int $slot, array $efeito, ?string $invocadorId, array &$animacoes): void
+    {
+        $linhagem = $efeito['linhagem'] ?? null;
+        $valor    = (int) ($efeito['valor'] ?? 1);
+
+        foreach ($estado['campo'][$slot] as &$aliado) {
+            if ($invocadorId && $aliado['instancia_id'] === $invocadorId) {
+                continue;
+            }
+            $card = CardCatalog::get($aliado['card_id']);
+            if ($linhagem && $card?->linhagem !== $linhagem) {
+                continue;
+            }
+            $aliado['bonus_ataque_turno'] = ($aliado['bonus_ataque_turno'] ?? 0) + $valor;
+            $animacoes[] = ['tipo' => 'buff_ataque', 'instancia_id' => $aliado['instancia_id'], 'valor' => $valor];
+        }
+        unset($aliado);
+    }
+
+    // ── Habilidades de inicio_turno_aliado ────────────────────────────────────────
+
+    /**
+     * Fragmento do Caos: no início do turno aliado, recebe ATK aleatório entre min e max
+     * (pode ser negativo). O bonus_ataque_turno é zerado no fim do turno pelo MatchEngine.
+     */
+    private function bonusAtaqueTurnoAleatorio(array &$estado, ?array &$unit, int $min, int $max, array &$animacoes): void
+    {
+        if (! $unit) {
+            return;
+        }
+        $valor                       = rand($min, $max);
+        $unit['bonus_ataque_turno']  = ($unit['bonus_ataque_turno'] ?? 0) + $valor;
+        $animacoes[] = ['tipo' => 'buff_ataque', 'instancia_id' => $unit['instancia_id'], 'valor' => $valor];
+        $this->syncToState($estado, $unit);
+    }
+
+    // ── Habilidades ativas ────────────────────────────────────────────────────────
+
+    /**
+     * Cultista do Nexus: deduz custo_vida do próprio HP (mínimo 1) e aplica
+     * +N ATK neste turno no aliado alvo.
+     */
+    private function sacrificioBuffAliado(array &$estado, int $slot, ?array &$unit, ?array &$alvo, int $custoVida, int $valorBuff, array &$animacoes): void
+    {
+        if (! $unit || ! $alvo) {
+            return;
+        }
+        // Deduz HP do Cultista (mínimo 1 para não matar o próprio)
+        $novaVida          = max(1, $unit['vida_atual'] - $custoVida);
+        $danoReal          = $unit['vida_atual'] - $novaVida;
+        $unit['vida_atual'] = $novaVida;
+        if ($danoReal > 0) {
+            $animacoes[] = ['tipo' => 'dano', 'instancia_id' => $unit['instancia_id'], 'valor' => $danoReal];
+        }
+        $this->syncToState($estado, $unit);
+        // Aplica buff ATK no turno ao aliado alvo
+        $this->buffAttackTurn($estado, $alvo, $valorBuff, $animacoes);
+    }
+
+    // ── Habilidades de ao_atacar ──────────────────────────────────────────────────
+
+    /**
+     * Lança-Chamas Infernal / Anjo Fragmentado:
+     * ao atacar, causa N dano à unidade inimiga imediatamente ao lado do alvo.
+     * Se houver duas adjacentes (esquerda e direita), escolhe aleatoriamente.
+     */
+    private function danoAdjacenteInimigo(
+        array &$estado,
+        int $slotInimigo,
+        array $alvoAtacado,
+        int $valor,
+        array &$animacoes,
+        ?array $origemDano = null,
+    ): void {
+        $campo    = $estado['campo'][$slotInimigo];
+        $posicao  = null;
+
+        foreach ($campo as $idx => $u) {
+            if ($u['instancia_id'] === $alvoAtacado['instancia_id']) {
+                $posicao = $idx;
+                break;
+            }
+        }
+
+        if ($posicao === null) {
+            return;
+        }
+
+        $adjacentes = [];
+        if (isset($campo[$posicao - 1])) {
+            $adjacentes[] = $posicao - 1;
+        }
+        if (isset($campo[$posicao + 1])) {
+            $adjacentes[] = $posicao + 1;
+        }
+
+        if (empty($adjacentes)) {
+            return;
+        }
+
+        // Escolhe uma adjacente aleatoriamente se houver duas
+        $idxAdj = $adjacentes[array_rand($adjacentes)];
+        $adjacente = &$estado['campo'][$slotInimigo][$idxAdj];
+        $this->engine->damageUnit($estado, $slotInimigo, $adjacente, $valor, $animacoes, $origemDano);
+        unset($adjacente);
     }
 }
