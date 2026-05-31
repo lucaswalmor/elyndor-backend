@@ -298,6 +298,32 @@ class MatchEngine
         return null;
     }
 
+    /**
+     * Espelha a redução de dano de damageUnit (sem escudo nem aplicar HP).
+     * Usado para overkill (Artilharia Elétrica) antes do hit.
+     */
+    public function calcularDanoRecebidoUnidade(array $unit, int $dmg): int
+    {
+        if ($dmg <= 0) {
+            return 0;
+        }
+
+        if ($unit['flags']['escudo'] ?? false) {
+            return 0;
+        }
+
+        $reducao = 0;
+        if ($this->effects->hasPassive($unit['card_id'], 'reducao_dano')) {
+            $reducao = 1;
+        }
+        if ($this->effects->hasPassive($unit['card_id'], 'reducao_dano_acumulativa')) {
+            $acumulada = min(3, ($unit['reducao_acumulada'] ?? 0) + 1);
+            $reducao += $acumulada;
+        }
+
+        return max(1, $dmg - $reducao);
+    }
+
     public function unitAttack(array &$estado, int $slot, array &$attacker, int $oppSlot, ?array &$defender, array &$animacoes): void
     {
         // FIX: confusão (Criança do Véu) — 50% de chance de errar o ataque
@@ -324,8 +350,18 @@ class MatchEngine
                 }
             }
 
+            // Pantera Sombria: +N dano contra unidade com HP cheio (antes do hit)
+            $bonusAlvoIleso = $this->effects->getPassiveValor($attacker['card_id'], 'dano_bonus_alvo_ileso');
+            if ($bonusAlvoIleso !== null && $bonusAlvoIleso > 0) {
+                $hpMaximoDefensor = (int) ($defender['vida_max'] ?? CardCatalog::get($defender['card_id'])?->vida ?? 0);
+                if ((int) ($defender['vida_atual'] ?? 0) >= $hpMaximoDefensor) {
+                    $atk += $bonusAlvoIleso;
+                }
+            }
+
             // Rastrear dano real para lifesteal (Costureira Macabra)
             $vidaAntes = $defender['vida_atual'];
+            $danoEfetivoPrevisto = $this->calcularDanoRecebidoUnidade($defender, $atk);
             $this->damageUnit($estado, $oppSlot, $defender, $atk, $animacoes, [
                 'slot' => $slot,
                 'instancia_id' => $attacker['instancia_id'],
@@ -367,7 +403,15 @@ class MatchEngine
             if ($defensorMorreu) {
                 $atacanteAtualizado = $this->findUnit($estado, $slot, $attacker['instancia_id']);
                 if ($atacanteAtualizado) {
-                    $this->effects->triggerSkills($estado, $slot, 'ao_matar', $atacanteAtualizado, $animacoes, []);
+                    $excessoDano = max(0, $danoEfetivoPrevisto - $vidaAntes);
+                    $this->effects->triggerSkills($estado, $slot, 'ao_matar', $atacanteAtualizado, $animacoes, [
+                        'overkill' => $excessoDano,
+                        'alvo' => $defender,
+                        'sourceUnit' => [
+                            'slot' => $slot,
+                            'instancia_id' => $attacker['instancia_id'],
+                        ],
+                    ]);
                 }
             }
         }
@@ -688,23 +732,30 @@ class MatchEngine
             if ($skill->tipo !== 'ativa') {
                 continue;
             }
-            // FIX: deduzir energia antes de aplicar o efeito
             $custo = (int) ($skill->efeito['custo_energia'] ?? 0);
             $player = &$estado['jogadores'][(string) $slot];
             if ($player['energia_atual'] < $custo) {
                 throw new InvalidArgumentException('Energia insuficiente para usar habilidade');
             }
-            $player['energia_atual'] -= $custo;
 
             $ctx = ['alvo_instancia_id' => $payload['alvo_instancia_id'] ?? null];
             $opp = $slot === 1 ? 2 : 1;
-            // Alvos aliados são buscados no próprio slot; inimigos, no oposto
             $alvoInstanciaId = $ctx['alvo_instancia_id'];
             $alvo            = null;
+            $tipoAlvo        = $skill->efeito['alvo'] ?? null;
             if ($alvoInstanciaId) {
-                $alvoSlot = ($skill->efeito['alvo'] ?? '') === 'unidade_aliada' ? $slot : $opp;
+                $alvoSlot = $tipoAlvo === 'unidade_aliada' ? $slot : $opp;
                 $alvo     = $this->findUnit($estado, $alvoSlot, $alvoInstanciaId);
             }
+            if ($tipoAlvo === 'unidade_aliada' && ! $alvo) {
+                throw new InvalidArgumentException('Selecione uma unidade aliada como alvo');
+            }
+            if ($tipoAlvo === 'unidade_inimiga' && ! $alvo) {
+                throw new InvalidArgumentException('Selecione uma unidade inimiga como alvo');
+            }
+            $this->effects->checkActiveAbilityPrerequisites($estado, $slot, $skill->efeito);
+
+            $player['energia_atual'] -= $custo;
             $ctx['alvo'] = $alvo;
             $this->effects->apply($estado, $slot, $unit, $skill->efeito, $animacoes, $ctx);
         }

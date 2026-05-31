@@ -352,6 +352,47 @@ class EffectResolver
                     );
                 }
                 break;
+
+            case 'transferir_excesso_dano':
+                // Artilharia Elétrica: overkill ao matar transfere para inimigo aleatório
+                $excesso = (int) ($context['overkill'] ?? 0);
+                if ($excesso > 0) {
+                    $this->transferirExcessoDanoInimigoAleatorio($estado, $slot, $excesso, $context, $animacoes);
+                }
+                break;
+
+            case 'reviver_ultimo_aliado_linhagem':
+                // Engenheiro Chefe: reconstrói unidade da linhagem do cemitério com HP percentual
+                $this->reviverUltimoAliadoLinhagem($estado, $slot, $efeito, $animacoes);
+                break;
+
+            case 'veu_arcano_aliado_aleatorio':
+                // Escudo Autômato: Véu Arcano em aliado aleatório ao invocar
+                $this->veuArcanoAliadoAleatorio($estado, $slot, $unit, $animacoes);
+                break;
+
+            case 'veneno_todas_inimigas':
+                // Fungo Devorador: ao morrer, Veneno em todas as unidades inimigas
+                $this->venenoTodasInimigas($estado, $slot, $efeito, $animacoes);
+                break;
+        }
+    }
+
+    /**
+     * Valida pré-requisitos de habilidades ativas antes de gastar energia.
+     */
+    public function checkActiveAbilityPrerequisites(array $estado, int $slot, array $efeito): void
+    {
+        $tipo = $efeito['tipo'] ?? '';
+
+        if ($tipo === 'reviver_ultimo_aliado_linhagem') {
+            $linhagem = $efeito['linhagem'] ?? null;
+            if (! $this->possuiUnidadeLinhagemNoCemiterio($estado, $slot, $linhagem)) {
+                throw new \InvalidArgumentException('Nenhuma unidade elegível no cemitério para reconstruir');
+            }
+            if (count($estado['campo'][$slot]) >= config('game.match.field.max_units_per_player')) {
+                throw new \InvalidArgumentException('Campo cheio — não há espaço para reconstruir');
+            }
         }
     }
 
@@ -1380,5 +1421,166 @@ class EffectResolver
         $adjacente = &$estado['campo'][$slotInimigo][$idxAdj];
         $this->engine->damageUnit($estado, $slotInimigo, $adjacente, $valor, $animacoes, $origemDano);
         unset($adjacente);
+    }
+
+    /**
+     * Artilharia Elétrica: transfere dano excedente (overkill) para unidade inimiga aleatória.
+     */
+    private function transferirExcessoDanoInimigoAleatorio(
+        array &$estado,
+        int $slot,
+        int $excesso,
+        array $context,
+        array &$animacoes,
+    ): void {
+        if ($excesso <= 0 || ! $this->engine) {
+            return;
+        }
+
+        $slotInimigo = $slot === 1 ? 2 : 1;
+        $instanciaMorta = $context['alvo']['instancia_id'] ?? null;
+        $candidatos = array_values(array_filter(
+            $estado['campo'][$slotInimigo] ?? [],
+            fn ($unidade) => $unidade['instancia_id'] !== $instanciaMorta,
+        ));
+
+        if (empty($candidatos)) {
+            return;
+        }
+
+        $indiceAleatorio = array_rand($candidatos);
+        $alvoSecundario = $candidatos[$indiceAleatorio];
+        $origemDano = ($context['sourceUnit'] ?? null);
+
+        foreach ($estado['campo'][$slotInimigo] as &$unidadeCampo) {
+            if ($unidadeCampo['instancia_id'] !== $alvoSecundario['instancia_id']) {
+                continue;
+            }
+            $this->engine->damageUnit($estado, $slotInimigo, $unidadeCampo, $excesso, $animacoes, $origemDano);
+            break;
+        }
+        unset($unidadeCampo);
+
+        $animacoes[] = [
+            'tipo' => 'overkill',
+            'instancia_id' => $alvoSecundario['instancia_id'],
+            'valor' => $excesso,
+        ];
+    }
+
+    /**
+     * Engenheiro Chefe: revive a unidade mais recente da linhagem no cemitério com HP percentual.
+     */
+    private function reviverUltimoAliadoLinhagem(array &$estado, int $slot, array $efeito, array &$animacoes): void
+    {
+        $linhagem     = $efeito['linhagem'] ?? null;
+        $percentual   = max(1, min(100, (int) ($efeito['hp_percentual'] ?? 50)));
+        $maxField     = config('game.match.field.max_units_per_player');
+
+        if (count($estado['campo'][$slot]) >= $maxField) {
+            return;
+        }
+
+        $cardId = $this->ultimaUnidadeLinhagemNoCemiterio($estado, $slot, $linhagem);
+        if ($cardId === null) {
+            return;
+        }
+
+        $card = CardCatalog::get($cardId);
+        if (! $card || $card->tipo === 'spell') {
+            return;
+        }
+
+        $hpMaximo = $card->vida;
+        $novaUnidade = [
+            'instancia_id'             => (string) Str::uuid(),
+            'card_id'                  => $cardId,
+            'vida_atual'               => max(1, (int) floor($hpMaximo * $percentual / 100)),
+            'vida_max'                 => $hpMaximo,
+            'bonus_ataque'             => 0,
+            'bonus_ataque_turno'       => 0,
+            'pode_atacar'              => false,
+            'foi_invocado_neste_turno' => true,
+            'silenciado'               => false,
+            'efeitos'                  => [],
+            'flags'                  => [],
+        ];
+        $this->initializeUnitFlags($novaUnidade, $card);
+        $estado['campo'][$slot][] = $novaUnidade;
+        $animacoes[] = ['tipo' => 'reviver', 'instancia_id' => $novaUnidade['instancia_id'], 'card_id' => $cardId];
+    }
+
+    /**
+     * Escudo Autômato: aplica Véu Arcano em aliado aleatório (exclui o invocador se houver outro).
+     */
+    private function veuArcanoAliadoAleatorio(array &$estado, int $slot, ?array $unit, array &$animacoes): void
+    {
+        $invocadorId = $unit['instancia_id'] ?? null;
+        $aliados = $estado['campo'][$slot] ?? [];
+
+        if (empty($aliados)) {
+            return;
+        }
+
+        $candidatos = array_values(array_filter(
+            $aliados,
+            fn ($aliado) => $aliado['instancia_id'] !== $invocadorId,
+        ));
+
+        if (empty($candidatos)) {
+            $candidatos = $aliados;
+        }
+
+        $indiceAleatorio = array_rand($candidatos);
+        $alvo = $candidatos[$indiceAleatorio];
+
+        foreach ($estado['campo'][$slot] as &$unidadeCampo) {
+            if ($unidadeCampo['instancia_id'] !== $alvo['instancia_id']) {
+                continue;
+            }
+            $this->addFlag($estado, $unidadeCampo, 'escudo', $animacoes);
+            break;
+        }
+        unset($unidadeCampo);
+    }
+
+    /**
+     * Fungo Devorador: aplica Veneno em todas as unidades inimigas em campo.
+     */
+    private function venenoTodasInimigas(array &$estado, int $slot, array $efeito, array &$animacoes): void
+    {
+        $slotInimigo = $slot === 1 ? 2 : 1;
+        $instancias  = array_column($estado['campo'][$slotInimigo] ?? [], 'instancia_id');
+
+        foreach ($instancias as $instanciaId) {
+            $unidade = $this->engine->findUnit($estado, $slotInimigo, $instanciaId);
+            if ($unidade) {
+                $this->addEffect($estado, $unidade, 'veneno', $efeito, $animacoes);
+            }
+        }
+    }
+
+    private function possuiUnidadeLinhagemNoCemiterio(array $estado, int $slot, ?string $linhagem): bool
+    {
+        return $this->ultimaUnidadeLinhagemNoCemiterio($estado, $slot, $linhagem) !== null;
+    }
+
+    private function ultimaUnidadeLinhagemNoCemiterio(array $estado, int $slot, ?string $linhagem): ?int
+    {
+        $cemiterio = array_reverse($estado['jogadores'][(string) $slot]['cemiterio'] ?? []);
+
+        foreach ($cemiterio as $cardId) {
+            $card = CardCatalog::get((int) $cardId);
+            if (! $card || $card->tipo === 'spell') {
+                continue;
+            }
+            if ($linhagem && $card->linhagem !== $linhagem) {
+                continue;
+            }
+
+            return (int) $cardId;
+        }
+
+        return null;
     }
 }
