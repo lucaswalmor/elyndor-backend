@@ -55,6 +55,13 @@ class UserResource extends JsonResource
             'is_content_creator' => (bool) ($this->is_content_creator ?? false),
             'pode_ativar_codigo_streamer' => ! ($this->is_content_creator ?? false)
                 && $this->streamer_invite_token === null,
+            'onboarding_deck_escolhido' => $this->onboarding_deck_escolhido_em !== null,
+            'tutorial_concluido' => $this->tutorial_concluido_em !== null,
+            'tutorial_pulado' => $this->tutorial_pulado_em !== null,
+            'tutorial_recompensa_resgatada' => $this->tutorial_recompensa_resgatada_em !== null,
+            'precisa_onboarding' => $this->onboarding_deck_escolhido_em === null,
+            'pode_resgatar_recompensa_tutorial' => $this->tutorial_concluido_em !== null
+                && $this->tutorial_recompensa_resgatada_em === null,
         ];
     }
 }

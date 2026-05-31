@@ -2,8 +2,10 @@
 
 namespace App\Services\Economy;
 
+use App\Models\Chest;
 use App\Models\GameMatch;
 use App\Models\MatchPlayer;
+use App\Models\PlayerChestStack;
 use App\Models\PlayerLevel;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -53,7 +55,7 @@ class MatchProgressionService
 
     private function modoSemRecompensasDeProgressao(string $modo): bool
     {
-        return in_array(trim($modo), ['desafio', 'friendly'], true);
+        return in_array(trim($modo), ['desafio', 'friendly', 'tutorial'], true);
     }
 
     private function rewardUser(int $userId, bool $won): void
@@ -92,6 +94,8 @@ class MatchProgressionService
         $base = (int) $bonusCfg['base'];
         $per = (int) $bonusCfg['per_level'];
 
+        $slugsBauNivel = config('game.progression.level_up_chest_slugs', []);
+
         while ($level->xp_atual >= $level->xpParaProximoNivel()) {
             $need = $level->xpParaProximoNivel();
             $level->xp_atual -= $need;
@@ -99,9 +103,31 @@ class MatchProgressionService
             $gain = $base + ($per * $level->nivel);
             $user->cristais = (int) $user->cristais + $gain;
             $user->save();
+            $this->concederBauSubidaNivel($user, (int) $level->nivel, $slugsBauNivel);
         }
 
         $level->save();
+    }
+
+    /** @param  list<string>  $slugsBau */
+    private function concederBauSubidaNivel(User $user, int $novoNivel, array $slugsBau): void
+    {
+        if ($slugsBau === []) {
+            return;
+        }
+
+        $indice = ($novoNivel - 1) % count($slugsBau);
+        $slug = (string) $slugsBau[$indice];
+        $baú = Chest::query()->where('slug', $slug)->where('active', true)->first();
+        if (! $baú) {
+            return;
+        }
+
+        $pilha = PlayerChestStack::query()->firstOrCreate(
+            ['user_id' => $user->id, 'chest_id' => $baú->id],
+            ['quantity' => 0],
+        );
+        $pilha->increment('quantity');
     }
 
 }

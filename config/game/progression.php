@@ -58,6 +58,15 @@ return [
         'per_level' => 10,
     ],
 
+    /** Baú de cartas concedido automaticamente ao subir de nível geral (rotaciona por linhagem). */
+    'level_up_chest_slugs' => [
+        'bau_cartas_karuna',
+        'bau_cartas_ybyra',
+        'bau_cartas_ferroveu',
+        'bau_cartas_anhanga',
+        'bau_cartas_orun',
+    ],
+
     /** Loja de cartas (paga com cristais) */
     'card_shop_prices_cristais' => [
         'comum' => 50,

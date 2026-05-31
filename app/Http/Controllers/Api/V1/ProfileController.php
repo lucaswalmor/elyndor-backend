@@ -35,12 +35,14 @@ class ProfileController extends Controller
         return response()->json(['data' => $rows]);
     }
 
-    /** Lista pública das divisões (elo) para filtros no ranking — sem valores min/max ao cliente. */
+    /** Lista pública das divisões (elo) para filtros no ranking — inclui faixa de pontos. */
     public function rankedDivisionOptions(): JsonResponse
     {
         $data = collect($this->ranked->divisions())->map(fn (array $d) => [
             'key' => $d['key'],
             'label' => $d['label'],
+            'min' => (int) $d['min'],
+            'max' => $d['max'],
         ])->values();
 
         return response()->json(['data' => $data]);

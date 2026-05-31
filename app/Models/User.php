@@ -17,7 +17,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'nickname', 'email', 'password', 'moedas', 'cristais', 'card_back_slug', 'profile_bg_slug', 'match_board_slug', 'avatar_id', 'ranked_points', 'ranked_wins', 'ranked_losses', 'total_matches_played', 'match_mode_counts', 'playtime_seconds', 'registration_device_id', 'is_content_creator', 'streamer_invite_token', 'streamer_invite_claim'])]
+#[Fillable(['name', 'nickname', 'email', 'password', 'moedas', 'cristais', 'card_back_slug', 'profile_bg_slug', 'match_board_slug', 'avatar_id', 'ranked_points', 'ranked_wins', 'ranked_losses', 'total_matches_played', 'match_mode_counts', 'playtime_seconds', 'registration_device_id', 'onboarding_deck_escolhido_em', 'tutorial_concluido_em', 'tutorial_pulado_em', 'tutorial_recompensa_resgatada_em', 'is_content_creator', 'streamer_invite_token', 'streamer_invite_claim'])]
 #[Hidden(['name', 'email', 'password', 'remember_token'])]
 class User extends Authenticatable implements CanResetPasswordContract
 {
@@ -74,6 +74,10 @@ class User extends Authenticatable implements CanResetPasswordContract
     {
         return [
             'email_verified_at' => 'datetime',
+            'onboarding_deck_escolhido_em' => 'datetime',
+            'tutorial_concluido_em' => 'datetime',
+            'tutorial_pulado_em' => 'datetime',
+            'tutorial_recompensa_resgatada_em' => 'datetime',
             'password' => 'hashed',
             'last_daily_win_bonus_date' => 'date',
             'match_mode_counts' => 'array',
