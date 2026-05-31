@@ -287,6 +287,383 @@ class Fase5HabilidadesPlaytestTest extends TestCase
         );
     }
 
+    public function test_cultista_do_nexus_sacrifica_hp_e_buffa_aliado_selecionado(): void
+    {
+        $cultista = Card::query()->create([
+            'nome' => 'Cultista Teste',
+            'slug' => 'cultista-teste',
+            'linhagem' => 'karuna',
+            'raridade' => 'comum',
+            'custo' => 2,
+            'ataque' => 1,
+            'vida' => 3,
+            'ativo' => true,
+        ]);
+        CardSkill::query()->create([
+            'card_id' => $cultista->id,
+            'nome' => 'Oferenda de Sangue',
+            'tipo' => 'ativa',
+            'gatilho' => null,
+            'ordem' => 0,
+            'efeito' => [
+                'tipo' => 'sacrificio_buff_aliado_turno',
+                'custo_energia' => 1,
+                'custo_vida' => 2,
+                'valor' => 2,
+                'alvo' => 'unidade_aliada',
+            ],
+        ]);
+
+        $aliado = Card::query()->create([
+            'nome' => 'Aliado Cultista',
+            'slug' => 'aliado-cultista-teste',
+            'linhagem' => 'karuna',
+            'raridade' => 'comum',
+            'custo' => 2,
+            'ataque' => 2,
+            'vida' => 4,
+            'ativo' => true,
+        ]);
+        CardCatalog::flush();
+
+        $jogador = User::factory()->create(['nickname' => 'CultistaJogador']);
+        $oponente = User::factory()->create(['nickname' => 'CultistaOponente']);
+
+        $estado = [
+            'turno' => 3,
+            'jogador_da_vez' => 1,
+            'revelacoes' => ['1' => [], '2' => []],
+            'jogadores' => [
+                '1' => $this->jogadorMinimo($jogador->id, 3),
+                '2' => $this->jogadorMinimo($oponente->id),
+            ],
+            'campo' => [
+                '1' => [
+                    $this->unidadeCampo('cultista-1', $cultista->id, 3, 3),
+                    $this->unidadeCampo('aliado-1', $aliado->id, 4, 4),
+                ],
+                '2' => [],
+            ],
+        ];
+
+        $partida = $this->criarPartida($estado, $jogador, $oponente);
+        $motor = app(MatchEngine::class);
+
+        $motor->processAction($partida, $jogador, [
+            'acao' => 'habilidade',
+            'instancia_id' => 'cultista-1',
+            'alvo_instancia_id' => 'aliado-1',
+        ]);
+
+        $estadoDepois = $partida->fresh()->estado;
+        $cultistaDepois = collect($estadoDepois['campo']['1'])->firstWhere('instancia_id', 'cultista-1');
+        $aliadoDepois = collect($estadoDepois['campo']['1'])->firstWhere('instancia_id', 'aliado-1');
+
+        $this->assertSame(1, $cultistaDepois['vida_atual'], 'Cultista sacrifica 2 HP (3 → 1, mínimo 1)');
+        $this->assertSame(2, $aliadoDepois['bonus_ataque_turno'] ?? 0);
+        $this->assertSame(2, $estadoDepois['jogadores']['1']['energia_atual']);
+    }
+
+    public function test_engenheiro_chefe_reconstroi_ferroveu_do_cemiterio_com_metade_hp(): void
+    {
+        $engenheiro = Card::query()->create([
+            'nome' => 'Engenheiro Chefe Teste',
+            'slug' => 'engenheiro-chefe-teste',
+            'linhagem' => 'ferroveu',
+            'raridade' => 'rara',
+            'custo' => 5,
+            'ataque' => 2,
+            'vida' => 5,
+            'ativo' => true,
+        ]);
+        CardSkill::query()->create([
+            'card_id' => $engenheiro->id,
+            'nome' => 'Linha de Montagem',
+            'tipo' => 'ativa',
+            'gatilho' => null,
+            'ordem' => 0,
+            'efeito' => [
+                'tipo' => 'reviver_ultimo_aliado_linhagem',
+                'linhagem' => 'ferroveu',
+                'hp_percentual' => 50,
+                'custo_energia' => 1,
+            ],
+        ]);
+
+        $ferroveuMorto = Card::query()->create([
+            'nome' => 'Tanque Morto',
+            'slug' => 'tanque-morto-teste',
+            'linhagem' => 'ferroveu',
+            'raridade' => 'comum',
+            'custo' => 4,
+            'ataque' => 3,
+            'vida' => 6,
+            'ativo' => true,
+        ]);
+        CardCatalog::flush();
+
+        $jogador = User::factory()->create(['nickname' => 'EngenheiroJogador']);
+        $oponente = User::factory()->create(['nickname' => 'EngenheiroOponente']);
+
+        $jogadorEstado = $this->jogadorMinimo($jogador->id, 3);
+        $jogadorEstado['cemiterio'] = [$ferroveuMorto->id];
+
+        $estado = [
+            'turno' => 6,
+            'jogador_da_vez' => 1,
+            'revelacoes' => ['1' => [], '2' => []],
+            'jogadores' => [
+                '1' => $jogadorEstado,
+                '2' => $this->jogadorMinimo($oponente->id),
+            ],
+            'campo' => [
+                '1' => [$this->unidadeCampo('engenheiro-1', $engenheiro->id, 5, 5)],
+                '2' => [],
+            ],
+        ];
+
+        $partida = $this->criarPartida($estado, $jogador, $oponente);
+        $motor = app(MatchEngine::class);
+
+        $motor->processAction($partida, $jogador, [
+            'acao' => 'habilidade',
+            'instancia_id' => 'engenheiro-1',
+        ]);
+
+        $estadoDepois = $partida->fresh()->estado;
+
+        $this->assertCount(2, $estadoDepois['campo']['1']);
+        $reconstruida = collect($estadoDepois['campo']['1'])
+            ->first(fn ($unidade) => $unidade['instancia_id'] !== 'engenheiro-1');
+
+        $this->assertNotNull($reconstruida);
+        $this->assertSame($ferroveuMorto->id, $reconstruida['card_id']);
+        $this->assertSame(3, $reconstruida['vida_atual'], '50% de 6 HP máximo = 3');
+        $this->assertSame(6, $reconstruida['vida_max']);
+        $this->assertFalse($reconstruida['pode_atacar']);
+    }
+
+    public function test_tecnico_de_campo_restaura_hp_de_aliado_alvo(): void
+    {
+        $tecnico = Card::query()->create([
+            'nome' => 'Técnico Teste',
+            'slug' => 'tecnico-teste',
+            'linhagem' => 'ferroveu',
+            'raridade' => 'comum',
+            'custo' => 3,
+            'ataque' => 1,
+            'vida' => 4,
+            'ativo' => true,
+        ]);
+        CardSkill::query()->create([
+            'card_id' => $tecnico->id,
+            'nome' => 'Reparo Rápido',
+            'tipo' => 'ativa',
+            'gatilho' => null,
+            'ordem' => 0,
+            'efeito' => [
+                'tipo' => 'cura_alvo',
+                'custo_energia' => 1,
+                'valor' => 2,
+                'alvo' => 'unidade_aliada',
+            ],
+        ]);
+
+        $aliado = Card::query()->create([
+            'nome' => 'Aliado Ferido',
+            'slug' => 'aliado-ferido-teste',
+            'linhagem' => 'ferroveu',
+            'raridade' => 'comum',
+            'custo' => 2,
+            'ataque' => 2,
+            'vida' => 5,
+            'ativo' => true,
+        ]);
+        CardCatalog::flush();
+
+        $jogador = User::factory()->create(['nickname' => 'TecnicoJogador']);
+        $oponente = User::factory()->create(['nickname' => 'TecnicoOponente']);
+
+        $estado = [
+            'turno' => 4,
+            'jogador_da_vez' => 1,
+            'revelacoes' => ['1' => [], '2' => []],
+            'jogadores' => [
+                '1' => $this->jogadorMinimo($jogador->id, 3),
+                '2' => $this->jogadorMinimo($oponente->id),
+            ],
+            'campo' => [
+                '1' => [
+                    $this->unidadeCampo('tecnico-1', $tecnico->id, 4, 4),
+                    $this->unidadeCampo('aliado-1', $aliado->id, 2, 5),
+                ],
+                '2' => [],
+            ],
+        ];
+
+        $partida = $this->criarPartida($estado, $jogador, $oponente);
+        $motor = app(MatchEngine::class);
+
+        $motor->processAction($partida, $jogador, [
+            'acao' => 'habilidade',
+            'instancia_id' => 'tecnico-1',
+            'alvo_instancia_id' => 'aliado-1',
+        ]);
+
+        $estadoDepois = $partida->fresh()->estado;
+        $aliadoDepois = collect($estadoDepois['campo']['1'])->firstWhere('instancia_id', 'aliado-1');
+
+        $this->assertSame(4, $aliadoDepois['vida_atual'], 'Aliado com 2 HP recebe +2 de cura');
+        $this->assertSame(2, $estadoDepois['jogadores']['1']['energia_atual']);
+    }
+
+    public function test_escudo_automato_aplica_veu_arcano_em_aliado_ao_invocar(): void
+    {
+        $escudo = Card::query()->create([
+            'nome' => 'Escudo Autômato Teste',
+            'slug' => 'escudo-automato-teste',
+            'linhagem' => 'ferroveu',
+            'raridade' => 'comum',
+            'custo' => 3,
+            'ataque' => 1,
+            'vida' => 6,
+            'ativo' => true,
+        ]);
+        CardSkill::query()->create([
+            'card_id' => $escudo->id,
+            'nome' => 'Barreira Protetora',
+            'tipo' => 'batalha_cry',
+            'gatilho' => 'ao_invocar',
+            'ordem' => 0,
+            'efeito' => ['tipo' => 'veu_arcano_aliado_aleatorio', 'cargas' => 1],
+        ]);
+
+        $aliado = Card::query()->create([
+            'nome' => 'Aliado Protegido',
+            'slug' => 'aliado-protegido-teste',
+            'linhagem' => 'ferroveu',
+            'raridade' => 'comum',
+            'custo' => 2,
+            'ataque' => 2,
+            'vida' => 4,
+            'ativo' => true,
+        ]);
+        CardCatalog::flush();
+
+        $jogador = User::factory()->create(['nickname' => 'EscudoJogador']);
+        $oponente = User::factory()->create(['nickname' => 'EscudoOponente']);
+
+        $jogadorEstado = $this->jogadorMinimo($jogador->id, 5);
+        $jogadorEstado['mao'] = [[
+            'instancia_id' => 'mao-escudo-1',
+            'card_id' => $escudo->id,
+        ]];
+
+        $estado = [
+            'turno' => 3,
+            'jogador_da_vez' => 1,
+            'revelacoes' => ['1' => [], '2' => []],
+            'jogadores' => [
+                '1' => $jogadorEstado,
+                '2' => $this->jogadorMinimo($oponente->id),
+            ],
+            'campo' => [
+                '1' => [$this->unidadeCampo('aliado-1', $aliado->id, 4, 4)],
+                '2' => [],
+            ],
+        ];
+
+        $partida = $this->criarPartida($estado, $jogador, $oponente);
+        $motor = app(MatchEngine::class);
+
+        $motor->processAction($partida, $jogador, [
+            'acao' => 'invocar',
+            'instancia_id' => 'mao-escudo-1',
+        ]);
+
+        $estadoDepois = $partida->fresh()->estado;
+        $aliadoDepois = collect($estadoDepois['campo']['1'])->firstWhere('instancia_id', 'aliado-1');
+        $escudoInvocado = collect($estadoDepois['campo']['1'])
+            ->first(fn ($unidade) => $unidade['instancia_id'] !== 'aliado-1');
+
+        $this->assertNotNull($escudoInvocado);
+        $this->assertTrue($aliadoDepois['flags']['escudo'] ?? false, 'Aliado existente recebe Véu Arcano');
+        $this->assertFalse($escudoInvocado['flags']['escudo'] ?? false, 'Escudo não aplica em si quando há outro aliado');
+    }
+
+    public function test_bomba_andante_causa_dano_ao_jogador_inimigo_ao_morrer(): void
+    {
+        $bomba = Card::query()->create([
+            'nome' => 'Bomba Andante Teste',
+            'slug' => 'bomba-andante-teste',
+            'linhagem' => 'ferroveu',
+            'raridade' => 'comum',
+            'custo' => 2,
+            'ataque' => 1,
+            'vida' => 3,
+            'ativo' => true,
+        ]);
+        CardSkill::query()->create([
+            'card_id' => $bomba->id,
+            'nome' => 'Detonação',
+            'tipo' => 'gatilho',
+            'gatilho' => 'ao_morrer',
+            'ordem' => 0,
+            'efeito' => ['tipo' => 'dano_jogador_inimigo', 'valor' => 1],
+        ]);
+
+        $atacante = Card::query()->create([
+            'nome' => 'Atacante Bomba',
+            'slug' => 'atacante-bomba-teste',
+            'linhagem' => 'karuna',
+            'raridade' => 'comum',
+            'custo' => 3,
+            'ataque' => 5,
+            'vida' => 3,
+            'ativo' => true,
+        ]);
+        CardCatalog::flush();
+
+        [$partida, $motor, $jogadorAtacante] = $this->montarPartidaAtaque(
+            $atacante,
+            [['instancia_id' => 'bomba-1', 'card_id' => $bomba->id, 'vida_atual' => 3, 'vida_max' => 3]],
+        );
+
+        $motor->processAction($partida, $jogadorAtacante, [
+            'acao' => 'atacar_unidade',
+            'instancia_id' => 'atacante-1',
+            'alvo_instancia_id' => 'bomba-1',
+        ]);
+
+        $estadoDepois = $partida->fresh()->estado;
+
+        $this->assertEmpty($estadoDepois['campo']['2']);
+        $this->assertSame(19, $estadoDepois['jogadores']['1']['vida'], 'Atacante (slot 1) recebe 1 de dano ao matar a Bomba');
+    }
+
+    /** @return array<string, mixed> */
+    private function unidadeCampo(
+        string $instanciaId,
+        int $cardId,
+        int $vidaAtual,
+        int $vidaMaxima,
+        bool $podeAtacar = false,
+    ): array {
+        return [
+            'instancia_id' => $instanciaId,
+            'card_id' => $cardId,
+            'vida_atual' => $vidaAtual,
+            'vida_max' => $vidaMaxima,
+            'bonus_ataque' => 0,
+            'bonus_ataque_turno' => 0,
+            'pode_atacar' => $podeAtacar,
+            'foi_invocado_neste_turno' => false,
+            'silenciado' => false,
+            'efeitos' => [],
+            'flags' => [],
+        ];
+    }
+
     /** @return array{0: Card, 1: Card, 2: Card} */
     private function criarTrioCombate(
         string $slugAtacante,
