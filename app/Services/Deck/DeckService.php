@@ -142,7 +142,8 @@ class DeckService
     /** @param  array<int, array{card_id: int, quantidade: int}>  $cartas */
     private function validateCartas(User $user, array $cartas): void
     {
-        $size = config('game.progression.decks.size');
+        $size = (int) config('game.progression.decks.size');
+        $minSave = (int) config('game.progression.decks.min_save', 15);
         $limits = config('game.progression.decks.copy_limits');
         $rarityTotalLimits = config('game.progression.decks.rarity_total_limits', []);
         $maxSpells = (int) config('game.progression.decks.max_spells', 5);
@@ -167,8 +168,8 @@ class DeckService
             $total += $qty;
         }
 
-        if ($total !== $size) {
-            throw new InvalidArgumentException("O deck deve ter exatamente {$size} cartas (atual: {$total})");
+        if ($total < $minSave || $total > $size) {
+            throw new InvalidArgumentException("O deck deve ter entre {$minSave} e {$size} cartas (atual: {$total})");
         }
 
         $cards = Card::whereIn('id', array_keys($byCard))->get()->keyBy('id');

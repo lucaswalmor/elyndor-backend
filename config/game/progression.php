@@ -76,16 +76,22 @@ return [
 
     'decks' => [
         'max_per_user' => 30,
+        /** Tamanho exigido para partida e flag `valido`. */
         'size' => 20,
+        /** Mínimo de cartas para permitir salvar rascunho no editor. */
+        'min_save' => 15,
         'max_spells' => 5,
+        /** Formato singleton: no máximo 1 cópia de cada carta no deck. */
         'copy_limits' => [
-            'comum' => 3,
-            'rara' => 5,
-            'epica' => 2,
+            'comum' => 1,
+            'rara' => 1,
+            'epica' => 1,
             'lendaria' => 1,
         ],
         'rarity_total_limits' => [
             'lendaria' => 1,
+            'epica' => 2,
+            'rara' => 5,
         ],
     ],
 ];
