@@ -49,11 +49,37 @@ class OnboardingService
         }
     }
 
+    // public function garantirDeckTreino(User $user): Deck
+    // {
+    //     $deck = Deck::query()
+    //         ->where('user_id', $user->id)
+    //         ->where('nome', config('game.tutorial.deck_treino_nome', 'Deck de Treino'))
+    //         ->first();
+
+    //     if ($deck) {
+    //         return $deck;
+    //     }
+
+    //     $slugs = config('game.tutorial.slugs_colecao_treino', []);
+    //     $cartas = array_map(fn (int $cardId) => ['card_id' => $cardId, 'quantidade' => 1], array_values($this->mapaSlugsParaIds($slugs)));
+
+    //     $formatado = $this->decks->create(
+    //         $user,
+    //         config('game.tutorial.deck_treino_nome', 'Deck de Treino'),
+    //         $cartas,
+    //         true,
+    //     );
+
+    //     return Deck::query()->findOrFail($formatado['id']);
+    // }
+
     public function garantirDeckTreino(User $user): Deck
     {
+        $nomeDeck = config('game.tutorial.deck_treino_nome', 'Deck de Treino');
+
         $deck = Deck::query()
             ->where('user_id', $user->id)
-            ->where('nome', config('game.tutorial.deck_treino_nome', 'Deck de Treino'))
+            ->where('nome', $nomeDeck)
             ->first();
 
         if ($deck) {
@@ -61,16 +87,37 @@ class OnboardingService
         }
 
         $slugs = config('game.tutorial.slugs_colecao_treino', []);
-        $cartas = array_map(fn (int $cardId) => ['card_id' => $cardId, 'quantidade' => 1], array_values($this->mapaSlugsParaIds($slugs)));
+        $cartaIds = array_values($this->mapaSlugsParaIds($slugs));
 
-        $formatado = $this->decks->create(
-            $user,
-            config('game.tutorial.deck_treino_nome', 'Deck de Treino'),
-            $cartas,
-            true,
-        );
+        return DB::transaction(function () use ($user, $nomeDeck, $cartaIds) {
+            // Garante que nenhum outro deck seja padrão
+            $user->decks()->update(['is_padrao' => false]);
 
-        return Deck::query()->findOrFail($formatado['id']);
+            $deck = Deck::create([
+                'user_id'    => $user->id,
+                'nome'       => $nomeDeck,
+                'is_padrao'  => true,
+            ]);
+
+            foreach ($cartaIds as $cardId) {
+                // \App\Models\DeckCard::create([
+                //     'deck_id'    => $deck->id,
+                //     'card_id'    => $cardId,
+                //     'quantidade' => 1,
+                // ]);
+                \App\Models\DeckCard::firstOrCreate(
+                    [
+                        'deck_id' => $deck->id,
+                        'card_id' => $cardId,
+                    ],
+                    [
+                        'quantidade' => 1,
+                    ]
+                );
+            }
+
+            return $deck;
+        });
     }
 
     public function pularTutorial(User $user): array
