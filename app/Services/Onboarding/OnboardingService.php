@@ -76,46 +76,41 @@ class OnboardingService
     public function garantirDeckTreino(User $user): Deck
     {
         $nomeDeck = config('game.tutorial.deck_treino_nome', 'Deck de Treino');
-
+    
         $deck = Deck::query()
             ->where('user_id', $user->id)
             ->where('nome', $nomeDeck)
             ->first();
-
+    
         if ($deck) {
             return $deck;
         }
-
+    
         $slugs = config('game.tutorial.slugs_colecao_treino', []);
         $cartaIds = array_values($this->mapaSlugsParaIds($slugs));
-
-        return DB::transaction(function () use ($user, $nomeDeck, $cartaIds) {
-            // Garante que nenhum outro deck seja padrão
+    
+        return DB::transaction(function () use ($user, $nomeDeck, $cartaIds, $slugs) {
+            // ✅ ADICIONADO: garante player_cards antes de criar o deck
+            $grant = $this->mapaSlugsParaIds($slugs);
+            if ($grant !== []) {
+                $this->colecao->grant($user, $grant);
+            }
+    
             $user->decks()->update(['is_padrao' => false]);
-
+    
             $deck = Deck::create([
-                'user_id'    => $user->id,
-                'nome'       => $nomeDeck,
-                'is_padrao'  => true,
+                'user_id'   => $user->id,
+                'nome'      => $nomeDeck,
+                'is_padrao' => true,
             ]);
-
+    
             foreach ($cartaIds as $cardId) {
-                // \App\Models\DeckCard::create([
-                //     'deck_id'    => $deck->id,
-                //     'card_id'    => $cardId,
-                //     'quantidade' => 1,
-                // ]);
                 \App\Models\DeckCard::firstOrCreate(
-                    [
-                        'deck_id' => $deck->id,
-                        'card_id' => $cardId,
-                    ],
-                    [
-                        'quantidade' => 1,
-                    ]
+                    ['deck_id' => $deck->id, 'card_id' => $cardId],
+                    ['quantidade' => 1]
                 );
             }
-
+    
             return $deck;
         });
     }
