@@ -27,20 +27,25 @@ class VersaoClienteDesktopService
     public function urlDownloadDiretoParaVersao(?string $versao): string
     {
         $override = config('elyndor.desktop_download_url');
-        if (is_string($override) && $override !== '' && str_ends_with(strtolower($override), '.exe')) {
+        if (is_string($override) && $override !== '' && $this->ehUrlDownloadDireto($override)) {
             return $override;
         }
 
-        $versaoInstalador = $versao ?? '0.1.0';
-        $repositorio = (string) config('elyndor.desktop_github_repo', 'lucaswalmor/elyndor-releases');
-        $nomeBase = (string) config('elyndor.desktop_installer_basename', 'Elyndor');
-
-        return sprintf(
-            'https://github.com/%s/releases/latest/download/%s_%s_x64-setup.exe',
-            $repositorio,
-            $nomeBase,
-            $versaoInstalador,
+        return (string) config(
+            'elyndor.desktop_download_url_default',
+            'https://drive.google.com/uc?export=download&id=1FwSR8YcKzbVIsOOm7Qn-lFnIF2JDroMr',
         );
+    }
+
+    private function ehUrlDownloadDireto(string $url): bool
+    {
+        $urlLower = strtolower($url);
+
+        if (str_ends_with($urlLower, '.exe')) {
+            return true;
+        }
+
+        return str_contains($urlLower, 'drive.google.com');
     }
 
     public function urlPaginaReleases(): string

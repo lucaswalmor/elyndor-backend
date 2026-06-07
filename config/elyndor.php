@@ -10,6 +10,11 @@ return [
 
     'desktop_download_url' => env('ELYNDOR_DESKTOP_DOWNLOAD_URL', ''),
 
+    'desktop_download_url_default' => env(
+        'ELYNDOR_DESKTOP_DOWNLOAD_URL_DEFAULT',
+        'https://drive.google.com/uc?export=download&id=1FwSR8YcKzbVIsOOm7Qn-lFnIF2JDroMr',
+    ),
+
     'desktop_installer_basename' => env('ELYNDOR_DESKTOP_INSTALLER_BASENAME', 'Elyndor'),
 
     'desktop_version_check_enabled' => env('DESKTOP_VERSION_CHECK_ENABLED', true),
